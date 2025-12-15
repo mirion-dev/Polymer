@@ -114,11 +114,11 @@ namespace polymer {
             _instance = nullptr;
         }
 
-        HWND handle() const {
+        operator HWND() {
             return _window;
         }
 
-        void show() const {
+        void show() {
             ShowWindow(_window, SW_SHOWDEFAULT);
             if (UpdateWindow(_window) == 0) {
                 throw std::runtime_error("Failed to update the window");
