@@ -15,7 +15,7 @@ namespace polymer {
 
         HINSTANCE _module{};
         HWND _window{};
-        std::function<void(UINT, UINT)> _on_resize;
+        std::function<std::optional<LRESULT>(HWND, UINT, WPARAM, LPARAM)> _handler;
 
         static LRESULT _message_handler(HWND window, UINT message, WPARAM param1, LPARAM param2) {
             if (_instance == nullptr) {
@@ -26,23 +26,14 @@ namespace polymer {
                 return 1;
             }
 
-            switch (message) {
-            case WM_SIZE:
-                if (param1 != SIZE_MINIMIZED) {
-                    _instance->_on_resize(LOWORD(param2), HIWORD(param2));
-                }
-                return 0;
-            case WM_SYSCOMMAND:
-                if ((param1 & 0xfff0) == SC_KEYMENU) {
-                    return 0;
-                }
-                break;
-            case WM_DESTROY:
+            if (message == WM_DESTROY) {
                 PostQuitMessage(0);
                 _instance->_window = nullptr;
                 return 0;
             }
-            return DefWindowProcW(window, message, param1, param2);
+
+            std::optional result{ _instance->_handler(window, message, param1, param2) };
+            return result ? *result : DefWindowProcW(window, message, param1, param2);
         }
 
     public:
@@ -51,10 +42,10 @@ namespace polymer {
             const std::wstring& title,
             UINT width,
             UINT height,
-            const std::function<void(UINT, UINT)>& on_resize
+            const decltype(_handler)& handler
         ) :
             _module{ module },
-            _on_resize{ on_resize } {
+            _handler{ handler } {
 
             if (_instance != nullptr) {
                 throw std::logic_error{ "The window already exists" };
