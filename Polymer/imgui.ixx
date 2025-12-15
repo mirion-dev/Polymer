@@ -13,7 +13,7 @@ namespace polymer {
 
         static inline Window* _instance{};
 
-        HINSTANCE _module{};
+        HMODULE _module{};
         HWND _window{};
         std::function<std::optional<LRESULT>(HWND, UINT, WPARAM, LPARAM)> _handler;
         float _scale{};
@@ -38,26 +38,16 @@ namespace polymer {
         }
 
     public:
-        Window(
-            HINSTANCE module,
-            const std::wstring& title,
-            UINT width,
-            UINT height,
-            const decltype(_handler)& handler
-        ) {
+        Window(const std::wstring& title, UINT width, UINT height, const decltype(_handler)& handler) {
             if (_instance != nullptr) {
                 throw std::logic_error{ "The window already exists" };
             }
             _instance = this;
 
-            _module = module;
-            _handler = handler;
-
-            ImGui_ImplWin32_EnableDpiAwareness();
-            _scale = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromPoint({}, MONITOR_DEFAULTTOPRIMARY));
-
-            width = static_cast<UINT>(width * _scale);
-            height = static_cast<UINT>(height * _scale);
+            _module = GetModuleHandleW(nullptr);
+            if (_module == nullptr) {
+                throw std::runtime_error{ "Failed to get the module" };
+            }
 
             WNDCLASSEXW window_class{
                 sizeof(window_class),
@@ -77,6 +67,12 @@ namespace polymer {
                 throw std::runtime_error{ "Failed to register the window class" };
             }
 
+            ImGui_ImplWin32_EnableDpiAwareness();
+            _scale = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromPoint({}, MONITOR_DEFAULTTOPRIMARY));
+
+            width = static_cast<UINT>(width * _scale);
+            height = static_cast<UINT>(height * _scale);
+            _handler = handler;
             _window = CreateWindowExW(
                 0,
                 CLASS_NAME,
