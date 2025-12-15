@@ -138,7 +138,7 @@ namespace polymer {
         };
 
     public:
-        Device(HWND window) {
+        Device(Window& window) {
             if (_instance != nullptr) {
                 throw std::logic_error{ "The device already exists" };
             }
