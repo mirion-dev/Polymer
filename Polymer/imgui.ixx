@@ -192,4 +192,48 @@ namespace polymer {
         }
     };
 
+    export class Ui {
+        static inline Ui* _instance{};
+
+    public:
+        Ui(Window& window, Device& device) {
+            if (_instance != nullptr) {
+                throw std::logic_error{ "The device already exists" };
+            }
+            _instance = this;
+
+            IMGUI_CHECKVERSION();
+            ImGui::CreateContext();
+
+            io().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard
+                | ImGuiConfigFlags_DockingEnable
+                | ImGuiConfigFlags_ViewportsEnable;
+            io().ConfigDpiScaleFonts = true;
+            io().ConfigDpiScaleViewports = true;
+
+            style().ScaleAllSizes(window.scale());
+
+            ImGui_ImplWin32_Init(window);
+            ImGui_ImplDX9_Init(device);
+        }
+
+        Ui(const Ui&) = delete;
+        Ui& operator=(const Ui&) = delete;
+
+        ~Ui() {
+            ImGui_ImplDX9_Shutdown();
+            ImGui_ImplWin32_Shutdown();
+            ImGui::DestroyContext();
+            _instance = nullptr;
+        }
+
+        ImGuiIO& io() {
+            return ImGui::GetIO();
+        }
+
+        ImGuiStyle& style() {
+            return ImGui::GetStyle();
+        }
+    };
+
 }
