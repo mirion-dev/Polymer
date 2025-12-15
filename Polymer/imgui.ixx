@@ -16,6 +16,7 @@ namespace polymer {
         HINSTANCE _module{};
         HWND _window{};
         std::function<std::optional<LRESULT>(HWND, UINT, WPARAM, LPARAM)> _handler;
+        float _scale{};
 
         static LRESULT _message_handler(HWND window, UINT message, WPARAM param1, LPARAM param2) {
             if (_instance == nullptr) {
@@ -43,14 +44,20 @@ namespace polymer {
             UINT width,
             UINT height,
             const decltype(_handler)& handler
-        ) :
-            _module{ module },
-            _handler{ handler } {
-
+        ) {
             if (_instance != nullptr) {
                 throw std::logic_error{ "The window already exists" };
             }
             _instance = this;
+
+            _module = module;
+            _handler = handler;
+
+            ImGui_ImplWin32_EnableDpiAwareness();
+            _scale = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromPoint({}, MONITOR_DEFAULTTOPRIMARY));
+
+            width = static_cast<UINT>(width * _scale);
+            height = static_cast<UINT>(height * _scale);
 
             WNDCLASSEXW window_class{
                 sizeof(window_class),
@@ -58,7 +65,7 @@ namespace polymer {
                 _message_handler,
                 0,
                 0,
-                module,
+                _module,
                 nullptr,
                 nullptr,
                 nullptr,
@@ -107,6 +114,10 @@ namespace polymer {
 
         operator HWND() {
             return _window;
+        }
+
+        float scale() const {
+            return _scale;
         }
 
         void show() {
