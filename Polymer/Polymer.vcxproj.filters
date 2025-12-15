@@ -23,6 +23,7 @@
     <ClCompile Include="..\third_party\imgui\backends\imgui_impl_win32.cpp">
       <Filter>third_party\imgui</Filter>
     </ClCompile>
+    <ClCompile Include="imgui.ixx" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="third_party">
@@ -57,6 +58,7 @@
     <ClInclude Include="..\third_party\imgui\backends\imgui_impl_win32.h">
       <Filter>third_party\imgui</Filter>
     </ClInclude>
+    <ClInclude Include="imgui.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\third_party\imgui\misc\debuggers\imgui.natstepfilter">
