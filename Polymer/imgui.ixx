@@ -126,4 +126,72 @@ namespace polymer {
         }
     };
 
+    export class Device {
+        static inline Device* _instance{};
+
+        IDirect3D9* _interface;
+        IDirect3DDevice9* _device;
+        D3DPRESENT_PARAMETERS _param{
+            .SwapEffect             = D3DSWAPEFFECT_DISCARD,
+            .Windowed               = true,
+            .EnableAutoDepthStencil = true,
+            .AutoDepthStencilFormat = D3DFMT_D16,
+            .PresentationInterval   = D3DPRESENT_INTERVAL_ONE
+        };
+
+    public:
+        Device(HWND window) {
+            if (_instance != nullptr) {
+                throw std::logic_error{ "The device already exists" };
+            }
+            _instance = this;
+
+            _interface = Direct3DCreate9(D3D_SDK_VERSION);
+            if (_interface == nullptr) {
+                throw std::runtime_error{ "Failed to create the interface" };
+            }
+
+            if (_interface->CreateDevice(
+                D3DADAPTER_DEFAULT,
+                D3DDEVTYPE_HAL,
+                window,
+                D3DCREATE_HARDWARE_VERTEXPROCESSING,
+                &_param,
+                &_device
+            ) < 0) {
+                _interface->Release();
+                throw std::runtime_error{ "Failed to create the device" };
+            }
+        }
+
+        Device(const Device&) = delete;
+        Device& operator=(const Device&) = delete;
+
+        ~Device() {
+            _device->Release();
+            _interface->Release();
+            _instance = nullptr;
+        }
+
+        operator IDirect3DDevice9*() {
+            return _device;
+        }
+
+        IDirect3DDevice9* operator->() {
+            return _device;
+        }
+
+        D3DPRESENT_PARAMETERS& param() {
+            return _param;
+        }
+
+        void reset() {
+            ImGui_ImplDX9_InvalidateDeviceObjects();
+            if (_device->Reset(&_param) < 0) {
+                throw std::runtime_error{ "Failed to reset the device" };
+            }
+            ImGui_ImplDX9_CreateDeviceObjects();
+        }
+    };
+
 }
