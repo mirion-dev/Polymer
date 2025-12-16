@@ -150,6 +150,7 @@
     <ClCompile Include="..\third_party\imgui\imgui_draw.cpp" />
     <ClCompile Include="..\third_party\imgui\imgui_tables.cpp" />
     <ClCompile Include="..\third_party\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="app.ixx" />
     <ClCompile Include="error.ixx" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="imgui.ixx" />
