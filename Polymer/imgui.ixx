@@ -8,7 +8,7 @@ module;
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx9.h>
 
-export module polymor.imgui;
+export module polymer.imgui;
 
 import std;
 import polymer.error;
