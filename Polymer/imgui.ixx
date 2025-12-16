@@ -141,8 +141,7 @@ namespace polymer {
             .SwapEffect             = D3DSWAPEFFECT_DISCARD,
             .Windowed               = true,
             .EnableAutoDepthStencil = true,
-            .AutoDepthStencilFormat = D3DFMT_D16,
-            .PresentationInterval   = D3DPRESENT_INTERVAL_ONE
+            .AutoDepthStencilFormat = D3DFMT_D16
         };
 
     public:
@@ -218,8 +217,11 @@ namespace polymer {
                 | ImGuiConfigFlags_ViewportsEnable;
             io().ConfigDpiScaleFonts = true;
             io().ConfigDpiScaleViewports = true;
+            io().IniFilename = nullptr;
 
             style().ScaleAllSizes(window.scale());
+            style().WindowRounding = 10;
+            style().FrameRounding = 10;
 
             ImGui_ImplWin32_Init(window);
             ImGui_ImplDX9_Init(device);
