@@ -9,44 +9,39 @@ import polymer.core;
 
 namespace polymer {
 
-    static std::string format_error(std::string_view message, const std::stacktrace& trace) {
-        std::string result{ message };
-        for (auto& entry : trace) {
-            std::string function_name{ entry.description() };
-            std::size_t pos{ function_name.find_last_of('+') };
-            if (pos != -1) {
-                function_name.resize(pos);
-            }
-
-            std::string filename{ std::filesystem::path{ entry.source_file() }.filename().string() };
-            if (filename.empty()) {
-                filename = "unknown";
-            }
-
-            result += std::format("\n    at {} ({}:{})", function_name, filename, entry.source_line());
-        }
-        return result;
+    static std::string format_error(std::string_view message, const std::source_location& loc) {
+        std::string filename{ loc.file_name() };
+        return std::format(
+            "{}\n    at {} ({}:{})",
+            message,
+            loc.function_name(),
+            filename.substr(filename.find_last_of('\\') + 1),
+            loc.line()
+        );
     }
 
     export void show_error(std::string_view message) {
         MessageBoxW(nullptr, to_wstring(message).data(), L"Error", MB_ICONERROR);
     }
 
-    export void fatal_error(std::string_view message, const std::stacktrace& trace = std::stacktrace::current()) {
-        show_error(format_error(message, trace));
+    export void fatal_error(
+        std::string_view message,
+        const std::source_location& loc = std::source_location::current()
+    ) {
+        show_error(format_error(message, loc));
         std::abort();
     }
 
     export class LogicError : public std::logic_error {
     public:
-        LogicError(std::string_view message, const std::stacktrace& trace = std::stacktrace::current()) :
-            std::logic_error{ format_error(message, trace) } {}
+        LogicError(std::string_view message, const std::source_location& loc = std::source_location::current()) :
+            std::logic_error{ format_error(message, loc) } {}
     };
 
     export class RuntimeError : public std::runtime_error {
     public:
-        RuntimeError(std::string_view message, const std::stacktrace& trace = std::stacktrace::current()) :
-            std::runtime_error{ format_error(message, trace) } {}
+        RuntimeError(std::string_view message, const std::source_location& loc = std::source_location::current()) :
+            std::runtime_error{ format_error(message, loc) } {}
     };
 
     export class SystemError : public std::runtime_error {
@@ -64,23 +59,19 @@ namespace polymer {
                 )
             };
 
-            std::string result;
-            if (size == 0) {
-                result = "Unknown error";
-            }
-            else {
-                while (size-- != 0) {
-                    wchar_t ch{ buffer[size] };
-                    if (ch != ' ' && ch != '\r' && ch != '\n') {
-                        break;
-                    }
-                }
-                result = to_string({ buffer, ++size });
-            }
-
+            wchar_t* end{ buffer + size };
+            wchar_t* last{
+                std::ranges::find_last_if_not(
+                    buffer,
+                    end,
+                    [](wchar_t ch) { return ch == ' ' || ch == '\r' || ch == '\n'; }
+                ).begin()
+            };
+            std::string result{ last == end ? "Unknown error" : to_string({ buffer, ++last }) };
             if (LocalFree(buffer) != nullptr) {
                 fatal_error("Failed to free the buffer.");
             }
+
             return result;
         }
 
@@ -88,9 +79,9 @@ namespace polymer {
         SystemError(
             std::string_view message,
             DWORD error = GetLastError(),
-            const std::stacktrace& trace = std::stacktrace::current()
+            const std::source_location& loc = std::source_location::current()
         ) :
-            std::runtime_error{ format_error(std::format("{} ({})", message, _format_code(error)), trace) } {}
+            std::runtime_error{ format_error(std::format("{} ({})", message, _format_code(error)), loc) } {}
     };
 
 }
