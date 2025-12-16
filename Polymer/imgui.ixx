@@ -44,7 +44,7 @@ namespace polymer {
         }
 
     public:
-        Window(const std::wstring& title, UINT width, UINT height, const decltype(_handler)& handler) {
+        Window(const std::wstring& title, int width, int height, const decltype(_handler)& handler) {
             if (_instance != nullptr) {
                 throw LogicError{ "The window already exists." };
             }
@@ -76,16 +76,18 @@ namespace polymer {
             ImGui_ImplWin32_EnableDpiAwareness();
             _scale = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromPoint({}, MONITOR_DEFAULTTOPRIMARY));
 
-            width = static_cast<UINT>(width * _scale);
-            height = static_cast<UINT>(height * _scale);
+            int screen_width{ GetSystemMetrics(SM_CXSCREEN) };
+            int screen_height{ GetSystemMetrics(SM_CYSCREEN) };
+            width = std::clamp(100, static_cast<int>(width * _scale), screen_width);
+            height = std::clamp(100, static_cast<int>(height * _scale), screen_height);
             _handler = handler;
             _window = CreateWindowExW(
                 0,
                 CLASS_NAME,
                 title.data(),
                 WS_OVERLAPPEDWINDOW,
-                std::max(0u, (GetSystemMetrics(SM_CXSCREEN) - width) / 2),
-                std::max(0u, (GetSystemMetrics(SM_CYSCREEN) - height) / 2),
+                (screen_width - width) / 2,
+                (screen_height - height) / 2,
                 width,
                 height,
                 nullptr,
