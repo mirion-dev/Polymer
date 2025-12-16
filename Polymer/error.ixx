@@ -8,7 +8,7 @@ import std;
 
 namespace polymer {
 
-    static std::wstring to_os_string(std::string_view str) {
+    export std::wstring to_os_string(std::string_view str) {
         if (str.empty()) {
             return {};
         }
@@ -39,7 +39,7 @@ namespace polymer {
         return result;
     }
 
-    static std::string from_os_string(std::wstring_view str) {
+    export std::string from_os_string(std::wstring_view str) {
         if (str.empty()) {
             return {};
         }

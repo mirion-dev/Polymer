@@ -2,6 +2,7 @@ module;
 
 #include "imgui.h"
 
+#include <ShlObj_core.h>
 #include <d3d9.h>
 #include <imgui.h>
 #include <imgui_impl_win32.h>
@@ -218,6 +219,22 @@ namespace polymer {
             io().ConfigDpiScaleFonts = true;
             io().ConfigDpiScaleViewports = true;
             io().IniFilename = nullptr;
+
+            wchar_t* font_dir;
+            bool ok{ SHGetKnownFolderPath(FOLDERID_Fonts, 0, nullptr, &font_dir) == 0 };
+            CoTaskMemFree(font_dir);
+            if (!ok) {
+                throw RuntimeError{ "Failed to get the font folder." };
+            }
+
+            if (io().Fonts->AddFontFromFileTTF(
+                (from_os_string(font_dir) + "/msyh.ttc").data(),
+                18,
+                nullptr,
+                io().Fonts->GetGlyphRangesChineseFull()
+            ) == nullptr) {
+                throw RuntimeError{ "Failed to load the font." };
+            }
 
             style().ScaleAllSizes(window.scale());
             style().WindowRounding = 10;
