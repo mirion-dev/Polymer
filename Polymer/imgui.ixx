@@ -127,9 +127,6 @@ namespace polymer {
 
         void show() {
             ShowWindow(_window, SW_SHOWDEFAULT);
-            if (UpdateWindow(_window) == 0) {
-                throw SystemError{ "Failed to update the window." };
-            }
         }
     };
 
