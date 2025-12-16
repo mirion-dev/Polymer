@@ -24,6 +24,7 @@
       <Filter>third_party\imgui</Filter>
     </ClCompile>
     <ClCompile Include="imgui.ixx" />
+    <ClCompile Include="error.ixx" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="third_party">
