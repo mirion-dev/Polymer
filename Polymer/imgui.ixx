@@ -2,9 +2,15 @@ module;
 
 #include "imgui.h"
 
+#include <d3d9.h>
+#include <imgui.h>
+#include <imgui_impl_win32.h>
+#include <imgui_impl_dx9.h>
+
 export module polymor.imgui;
 
 import std;
+import polymer.error;
 
 namespace polymer {
 
@@ -20,7 +26,7 @@ namespace polymer {
 
         static LRESULT _message_handler(HWND window, UINT message, WPARAM param1, LPARAM param2) {
             if (_instance == nullptr) {
-                FATAL_ERROR("The window does not exist");
+                fatal_error("The window does not exist.");
             }
 
             if (ImGui_ImplWin32_WndProcHandler(window, message, param1, param2)) {
@@ -40,13 +46,13 @@ namespace polymer {
     public:
         Window(const std::wstring& title, UINT width, UINT height, const decltype(_handler)& handler) {
             if (_instance != nullptr) {
-                throw std::logic_error{ "The window already exists" };
+                throw LogicError{ "The window already exists." };
             }
             _instance = this;
 
             _module = GetModuleHandleW(nullptr);
             if (_module == nullptr) {
-                throw std::runtime_error{ "Failed to get the module" };
+                throw SystemError{ "Failed to get the module." };
             }
 
             WNDCLASSEXW window_class{
@@ -64,7 +70,7 @@ namespace polymer {
                 nullptr
             };
             if (RegisterClassExW(&window_class) == 0) {
-                throw std::runtime_error{ "Failed to register the window class" };
+                throw SystemError{ "Failed to register the window class." };
             }
 
             ImGui_ImplWin32_EnableDpiAwareness();
@@ -89,9 +95,9 @@ namespace polymer {
             );
             if (_window == nullptr) {
                 if (UnregisterClassW(CLASS_NAME, _module) == 0) {
-                    FATAL_ERROR("Failed to create the window and failed to unregister the window class");
+                    fatal_error("Failed to create the window and failed to unregister the window class.");
                 }
-                throw std::runtime_error{ "Failed to create the window" };
+                throw SystemError{ "Failed to create the window." };
             }
         }
 
@@ -100,10 +106,10 @@ namespace polymer {
 
         ~Window() {
             if (_window != nullptr && DestroyWindow(_window) == 0) {
-                FATAL_ERROR("Failed to destroy the window");
+                fatal_error("Failed to destroy the window.");
             }
             if (UnregisterClassW(CLASS_NAME, _module) == 0) {
-                FATAL_ERROR("Failed to unregister the window class");
+                fatal_error("Failed to unregister the window class.");
             }
             _instance = nullptr;
         }
@@ -119,7 +125,7 @@ namespace polymer {
         void show() {
             ShowWindow(_window, SW_SHOWDEFAULT);
             if (UpdateWindow(_window) == 0) {
-                throw std::runtime_error("Failed to update the window");
+                throw SystemError{ "Failed to update the window." };
             }
         }
     };
@@ -140,13 +146,13 @@ namespace polymer {
     public:
         Device(Window& window) {
             if (_instance != nullptr) {
-                throw std::logic_error{ "The device already exists" };
+                throw LogicError{ "The device already exists." };
             }
             _instance = this;
 
             _interface = Direct3DCreate9(D3D_SDK_VERSION);
             if (_interface == nullptr) {
-                throw std::runtime_error{ "Failed to create the interface" };
+                throw RuntimeError{ "Failed to create the interface." };
             }
 
             if (_interface->CreateDevice(
@@ -158,7 +164,7 @@ namespace polymer {
                 &_device
             ) < 0) {
                 _interface->Release();
-                throw std::runtime_error{ "Failed to create the device" };
+                throw RuntimeError{ "Failed to create the device." };
             }
         }
 
@@ -186,7 +192,7 @@ namespace polymer {
         void reset() {
             ImGui_ImplDX9_InvalidateDeviceObjects();
             if (_device->Reset(&_param) < 0) {
-                throw std::runtime_error{ "Failed to reset the device" };
+                throw RuntimeError{ "Failed to reset the device." };
             }
             ImGui_ImplDX9_CreateDeviceObjects();
         }
@@ -198,7 +204,7 @@ namespace polymer {
     public:
         Ui(Window& window, Device& device) {
             if (_instance != nullptr) {
-                throw std::logic_error{ "The device already exists" };
+                throw LogicError{ "The ui already exists." };
             }
             _instance = this;
 
