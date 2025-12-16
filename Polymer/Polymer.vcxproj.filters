@@ -25,6 +25,7 @@
     </ClCompile>
     <ClCompile Include="imgui.ixx" />
     <ClCompile Include="app.ixx" />
+    <ClCompile Include="core.ixx" />
     <ClCompile Include="error.ixx" />
   </ItemGroup>
   <ItemGroup>

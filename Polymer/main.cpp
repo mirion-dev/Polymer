@@ -7,11 +7,12 @@ import polymer.app;
 using namespace polymer;
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
+    App app;
     try {
-        App{}.run();
+        app.run();
     }
     catch (const std::exception& error) {
-        fatal_error(error.what());
+        show_error(error.what());
     }
     return 0;
 }

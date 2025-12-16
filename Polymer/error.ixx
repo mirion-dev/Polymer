@@ -5,113 +5,9 @@ module;
 export module polymer.error;
 
 import std;
+import polymer.core;
 
 namespace polymer {
-
-    export std::wstring to_os_string(std::string_view str) {
-        if (str.empty()) {
-            return {};
-        }
-
-        int size{
-            MultiByteToWideChar(
-                CP_UTF8,
-                MB_ERR_INVALID_CHARS,
-                str.data(),
-                static_cast<int>(str.size()),
-                nullptr,
-                0
-            )
-        };
-        if (size == 0) {
-            return {};
-        }
-
-        std::wstring result(size, '\0');
-        MultiByteToWideChar(
-            CP_UTF8,
-            0,
-            str.data(),
-            static_cast<int>(str.size()),
-            result.data(),
-            size
-        );
-        return result;
-    }
-
-    export std::string from_os_string(std::wstring_view str) {
-        if (str.empty()) {
-            return {};
-        }
-
-        int size{
-            WideCharToMultiByte(
-                CP_UTF8,
-                WC_ERR_INVALID_CHARS,
-                str.data(),
-                static_cast<int>(str.size()),
-                nullptr,
-                0,
-                nullptr,
-                nullptr
-            )
-        };
-        if (size == 0) {
-            return {};
-        }
-
-        std::string result(size, '\0');
-        WideCharToMultiByte(
-            CP_UTF8,
-            0,
-            str.data(),
-            static_cast<int>(str.size()),
-            result.data(),
-            size,
-            nullptr,
-            nullptr
-        );
-        return result;
-    }
-
-    export void fatal_error(std::string_view message) {
-        MessageBoxW(nullptr, to_os_string(message).data(), L"Fatal Error", MB_ICONERROR);
-        std::abort();
-    }
-
-    static std::string format_os_error(DWORD error) {
-        wchar_t* buffer{};
-        DWORD size{
-            FormatMessageW(
-                FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                nullptr,
-                error,
-                MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
-                reinterpret_cast<wchar_t*>(&buffer),
-                0,
-                nullptr
-            )
-        };
-
-        std::string result;
-        if (size == 0) {
-            result = "Unknown error";
-        }
-        else {
-            while (size-- != 0) {
-                wchar_t ch{ buffer[size] };
-                if (ch != ' ' && ch != '\r' && ch != '\n') {
-                    break;
-                }
-            }
-            result = from_os_string({ buffer, ++size });
-        }
-
-        if (LocalFree(buffer) != nullptr) {
-            fatal_error("Failed to free the buffer.");
-        }
-        return result;
-    }
 
     static std::string format_error(std::string_view message, const std::stacktrace& trace) {
         std::string result{ message };
@@ -132,6 +28,15 @@ namespace polymer {
         return result;
     }
 
+    export void show_error(std::string_view message) {
+        MessageBoxW(nullptr, to_wstring(message).data(), L"Error", MB_ICONERROR);
+    }
+
+    export void fatal_error(std::string_view message, const std::stacktrace& trace = std::stacktrace::current()) {
+        show_error(format_error(message, trace));
+        std::abort();
+    }
+
     export class LogicError : public std::logic_error {
     public:
         LogicError(std::string_view message, const std::stacktrace& trace = std::stacktrace::current()) :
@@ -145,13 +50,47 @@ namespace polymer {
     };
 
     export class SystemError : public std::runtime_error {
+        static std::string _format_code(DWORD error) {
+            wchar_t* buffer{};
+            DWORD size{
+                FormatMessageW(
+                    FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                    nullptr,
+                    error,
+                    MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
+                    reinterpret_cast<wchar_t*>(&buffer),
+                    0,
+                    nullptr
+                )
+            };
+
+            std::string result;
+            if (size == 0) {
+                result = "Unknown error";
+            }
+            else {
+                while (size-- != 0) {
+                    wchar_t ch{ buffer[size] };
+                    if (ch != ' ' && ch != '\r' && ch != '\n') {
+                        break;
+                    }
+                }
+                result = to_string({ buffer, ++size });
+            }
+
+            if (LocalFree(buffer) != nullptr) {
+                fatal_error("Failed to free the buffer.");
+            }
+            return result;
+        }
+
     public:
         SystemError(
             std::string_view message,
             DWORD error = GetLastError(),
             const std::stacktrace& trace = std::stacktrace::current()
         ) :
-            std::runtime_error{ format_error(std::format("{} ({})", message, format_os_error(error)), trace) } {}
+            std::runtime_error{ format_error(std::format("{} ({})", message, _format_code(error)), trace) } {}
     };
 
 }

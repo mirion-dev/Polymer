@@ -11,6 +11,7 @@ module;
 export module polymer.imgui;
 
 import std;
+import polymer.core;
 import polymer.error;
 
 namespace polymer {
@@ -225,7 +226,7 @@ namespace polymer {
             }
 
             if (io().Fonts->AddFontFromFileTTF(
-                (from_os_string(font_dir) + "/msyh.ttc").data(),
+                (to_string(font_dir) + "/msyh.ttc").data(),
                 18,
                 nullptr,
                 io().Fonts->GetGlyphRangesChineseFull()
