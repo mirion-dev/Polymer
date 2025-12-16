@@ -86,19 +86,29 @@ namespace polymer {
                 FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                 nullptr,
                 error,
-                0,
+                MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
                 reinterpret_cast<wchar_t*>(&buffer),
                 0,
                 nullptr
             )
         };
+
+        std::string result;
         if (size == 0) {
-            return "Unknown error";
+            result = "Unknown error";
+        }
+        else {
+            while (size-- != 0) {
+                wchar_t ch{ buffer[size] };
+                if (ch != ' ' && ch != '\r' && ch != '\n') {
+                    break;
+                }
+            }
+            result = from_os_string({ buffer, ++size });
         }
 
-        std::string result{ from_os_string({ buffer, size }) };
         if (LocalFree(buffer) != nullptr) {
-            fatal_error("Failed to free buffer.");
+            fatal_error("Failed to free the buffer.");
         }
         return result;
     }
@@ -107,14 +117,17 @@ namespace polymer {
         std::string result{ message };
         for (auto& entry : trace) {
             std::string function_name{ entry.description() };
-            function_name.resize(function_name.find_last_of('+'));
+            std::size_t pos{ function_name.find_last_of('+') };
+            if (pos != -1) {
+                function_name.resize(pos);
+            }
 
             std::string filename{ std::filesystem::path{ entry.source_file() }.filename().string() };
             if (filename.empty()) {
                 filename = "unknown";
             }
 
-            result += std::format("\n    at {}({}:{})", function_name, filename, entry.source_line());
+            result += std::format("\n    at {} ({}:{})", function_name, filename, entry.source_line());
         }
         return result;
     }
@@ -138,7 +151,7 @@ namespace polymer {
             DWORD error = GetLastError(),
             const std::stacktrace& trace = std::stacktrace::current()
         ) :
-            std::runtime_error{ format_error(std::format("{}: {}", message, format_os_error(error)), trace) } {}
+            std::runtime_error{ format_error(std::format("{} ({})", message, format_os_error(error)), trace) } {}
     };
 
 }
