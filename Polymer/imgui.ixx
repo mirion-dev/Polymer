@@ -2,11 +2,11 @@ module;
 
 #include "imgui.h"
 
-#include <ShlObj_core.h>
 #include <d3d9.h>
 #include <imgui.h>
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx9.h>
+#include <ShlObj_core.h>
 
 export module polymer.imgui;
 
@@ -15,6 +15,36 @@ import polymer.core;
 import polymer.error;
 
 namespace polymer {
+
+    struct Platform {
+        HMODULE current_module{};
+        int screen_width{};
+        int screen_height{};
+        float scale_factor{};
+
+        Platform() {
+            ImGui_ImplWin32_EnableDpiAwareness();
+
+            current_module = GetModuleHandleW(nullptr);
+            if (current_module == nullptr) {
+                fatal_error("Failed to get the current module.");
+            }
+
+            screen_width = GetSystemMetrics(SM_CXSCREEN);
+            if (screen_width == 0) {
+                fatal_error("Failed to get the screen width.");
+            }
+
+            screen_height = GetSystemMetrics(SM_CYSCREEN);
+            if (screen_height == 0) {
+                fatal_error("Failed to get the screen height.");
+            }
+
+            scale_factor = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY));
+        }
+    };
+
+    static Platform platform;
 
     export class Window {
         static constexpr auto CLASS_NAME{ L"Polymer" };
