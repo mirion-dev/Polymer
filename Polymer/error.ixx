@@ -9,7 +9,7 @@ import polymer.core;
 
 namespace polymer {
 
-    static std::string format_error(std::string_view message, const std::source_location& loc) {
+    export std::string format_error(std::string_view message, const std::source_location& loc) {
         std::string filename{ loc.file_name() };
         return std::format(
             "{}\n    at {} ({}:{})",

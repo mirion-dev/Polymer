@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="Polymer/Polymer.vcxproj" />
+  <Project Path="Polymer/Polymer.vcxproj" Id="35a434ce-795d-4297-bd8c-0fc962f9d1ee" />
 </Solution>
