@@ -6,14 +6,13 @@ module;
 #include <imgui.h>
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx9.h>
-#include <ShlObj_core.h>
+
 #include <wrl/client.h> // including <wil/com.h> causes ICE
 #include <wil/resource.h>
 
 export module polymer.imgui;
 
 import std;
-import polymer.core;
 import polymer.error;
 
 using Microsoft::WRL::ComPtr;
@@ -222,34 +221,6 @@ namespace polymer {
         Ui(Window& window, Device& device) {
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
-
-            io().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard
-                | ImGuiConfigFlags_DockingEnable
-                | ImGuiConfigFlags_ViewportsEnable;
-            io().ConfigDpiScaleFonts = true;
-            io().ConfigDpiScaleViewports = true;
-            io().IniFilename = nullptr;
-
-            wchar_t* font_dir;
-            bool ok{ SHGetKnownFolderPath(FOLDERID_Fonts, 0, nullptr, &font_dir) == 0 };
-            CoTaskMemFree(font_dir);
-            if (!ok) {
-                throw RuntimeError{ "Failed to get the font folder." };
-            }
-
-            if (io().Fonts->AddFontFromFileTTF(
-                (to_string(font_dir) + "/msyh.ttc").data(),
-                18,
-                nullptr,
-                io().Fonts->GetGlyphRangesChineseFull()
-            ) == nullptr) {
-                throw RuntimeError{ "Failed to load the font." };
-            }
-
-            style().ScaleAllSizes(env().scale_factor);
-            style().WindowRounding = 10;
-            style().FrameRounding = 10;
-
             ImGui_ImplWin32_Init(window.get());
             ImGui_ImplDX9_Init(device.get());
         }
