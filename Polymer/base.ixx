@@ -1,6 +1,6 @@
 module;
 
-#include "imgui.h"
+#include "base.h"
 
 #include <d3d9.h>
 #include <imgui.h>
@@ -10,7 +10,7 @@ module;
 #include <wrl/client.h> // including <wil/com.h> causes ICE
 #include <wil/resource.h>
 
-export module polymer.imgui;
+export module polymer.base;
 
 import std;
 import polymer.error;
