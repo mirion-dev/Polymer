@@ -17,7 +17,7 @@ export module polymer.base;
 import std;
 import polymer.error;
 
-using Microsoft::WRL::ComPtr;
+using namespace Microsoft;
 
 namespace polymer {
 
@@ -68,7 +68,7 @@ namespace polymer {
     }
 
     export class WindowClass {
-        static LRESULT _handler(HWND, UINT, WPARAM, LPARAM);
+        static LRESULT _message_handler(HWND, UINT, WPARAM, LPARAM);
 
         static void _deleter(ATOM atom) {
             if (UnregisterClassW(MAKEINTATOM(atom), env().current_module) == 0) {
@@ -86,7 +86,7 @@ namespace polymer {
             WNDCLASSEXW window_class{
                 sizeof(window_class),
                 0,
-                _handler,
+                _message_handler,
                 0,
                 0,
                 env().current_module,
@@ -111,16 +111,22 @@ namespace polymer {
     export class Window {
         friend WindowClass;
 
-        using Handler = std::function<LRESULT(HWND, UINT, WPARAM, LPARAM)>;
+        using MessageHandler = std::function<LRESULT(HWND, UINT, WPARAM, LPARAM)>;
 
         std::wstring _title;
-        std::unique_ptr<Handler> _handler;
+        std::unique_ptr<MessageHandler> _message_handler;
         wil::unique_hwnd _handle;
 
     public:
-        Window(WindowClass& window_class, std::wstring_view title, int width, int height, const Handler& handler) :
+        Window(
+            WindowClass& window_class,
+            std::wstring_view title,
+            int width,
+            int height,
+            const MessageHandler& message_handler
+        ) :
             _title{ title },
-            _handler{ new Handler{ handler } } {
+            _message_handler{ new MessageHandler{ message_handler } } {
 
             width = std::clamp(static_cast<int>(width * env().scale_factor), 100, env().screen_width);
             height = std::clamp(static_cast<int>(height * env().scale_factor), 100, env().screen_height);
@@ -136,7 +142,7 @@ namespace polymer {
                 nullptr,
                 nullptr,
                 env().current_module,
-                _handler.get()
+                _message_handler.get()
             ));
             if (_handle == nullptr) {
                 throw SystemError{ "Failed to create the window." };
@@ -150,30 +156,44 @@ namespace polymer {
         void show() {
             ShowWindow(_handle.get(), SW_SHOWDEFAULT);
         }
+
+        static bool process_message() {
+            MSG message;
+            bool quit{};
+            while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
+                TranslateMessage(&message);
+                DispatchMessageW(&message);
+                if (message.message == WM_QUIT) {
+                    quit = true;
+                }
+            }
+            return quit;
+        }
     };
 
-    LRESULT WindowClass::_handler(HWND window, UINT message, WPARAM param1, LPARAM param2) {
+    LRESULT WindowClass::_message_handler(HWND window, UINT message, WPARAM param1, LPARAM param2) {
         if (ImGui_ImplWin32_WndProcHandler(window, message, param1, param2)) {
             return 1;
         }
 
-        Window::Handler* handler;
+        Window::MessageHandler* message_handler;
         if (message == WM_NCCREATE) {
-            handler = static_cast<Window::Handler*>(reinterpret_cast<LPCREATESTRUCT>(param2)->lpCreateParams);
+            message_handler = static_cast<Window::MessageHandler*>(reinterpret_cast<LPCREATESTRUCT>(param2)->
+                lpCreateParams);
             SetLastError(0);
-            SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(handler));
+            SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(message_handler));
             if (GetLastError() != 0) {
                 fatal_error_with_code("Failed to set the user data.");
             }
         }
         else {
-            handler = reinterpret_cast<Window::Handler*>(GetWindowLongPtrW(window, GWLP_USERDATA));
+            message_handler = reinterpret_cast<Window::MessageHandler*>(GetWindowLongPtrW(window, GWLP_USERDATA));
         }
 
-        if (handler == nullptr) {
+        if (message_handler == nullptr) {
             return DefWindowProcW(window, message, param1, param2);
         }
-        return (*handler)(window, message, param1, param2);
+        return (*message_handler)(window, message, param1, param2);
     }
 
     export class Device {
@@ -183,8 +203,8 @@ namespace polymer {
             .EnableAutoDepthStencil = true,
             .AutoDepthStencilFormat = D3DFMT_D16
         };
-        ComPtr<IDirect3D9> _interface;
-        ComPtr<IDirect3DDevice9> _device;
+        WRL::ComPtr<IDirect3D9> _interface;
+        WRL::ComPtr<IDirect3DDevice9> _device;
 
     public:
         Device(Window& window) {
