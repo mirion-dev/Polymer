@@ -7,6 +7,7 @@ module;
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx9.h>
 #include <ShlObj_core.h>
+#include <wrl/client.h> // including <wil/com.h> causes ICE
 #include <wil/resource.h>
 
 export module polymer.imgui;
@@ -14,6 +15,8 @@ export module polymer.imgui;
 import std;
 import polymer.core;
 import polymer.error;
+
+using Microsoft::WRL::ComPtr;
 
 namespace polymer {
 
@@ -90,7 +93,7 @@ namespace polymer {
             }
         }
 
-        const wchar_t* atom() {
+        const wchar_t* get() {
             return MAKEINTATOM(_atom.get());
         }
     };
@@ -113,7 +116,7 @@ namespace polymer {
             height = std::clamp(static_cast<int>(height * env().scale_factor), 100, env().screen_height);
             _handle.reset(CreateWindowExW(
                 0,
-                window_class.atom(),
+                window_class.get(),
                 _title.data(),
                 WS_OVERLAPPEDWINDOW,
                 (env().screen_width - width) / 2,
@@ -130,7 +133,7 @@ namespace polymer {
             }
         }
 
-        HWND handle() {
+        HWND get() {
             return _handle.get();
         }
 
@@ -164,24 +167,17 @@ namespace polymer {
     }
 
     export class Device {
-        static inline Device* _instance{};
-
-        IDirect3D9* _interface;
-        IDirect3DDevice9* _device;
         D3DPRESENT_PARAMETERS _param{
             .SwapEffect             = D3DSWAPEFFECT_DISCARD,
             .Windowed               = true,
             .EnableAutoDepthStencil = true,
             .AutoDepthStencilFormat = D3DFMT_D16
         };
+        ComPtr<IDirect3D9> _interface;
+        ComPtr<IDirect3DDevice9> _device;
 
     public:
         Device(Window& window) {
-            if (_instance != nullptr) {
-                throw LogicError{ "The device already exists." };
-            }
-            _instance = this;
-
             _interface = Direct3DCreate9(D3D_SDK_VERSION);
             if (_interface == nullptr) {
                 throw RuntimeError{ "Failed to create the interface." };
@@ -190,7 +186,7 @@ namespace polymer {
             if (_interface->CreateDevice(
                 D3DADAPTER_DEFAULT,
                 D3DDEVTYPE_HAL,
-                window.handle(),
+                window.get(),
                 D3DCREATE_HARDWARE_VERTEXPROCESSING,
                 &_param,
                 &_device
@@ -200,25 +196,16 @@ namespace polymer {
             }
         }
 
-        Device(const Device&) = delete;
-        Device& operator=(const Device&) = delete;
-
-        ~Device() {
-            _device->Release();
-            _interface->Release();
-            _instance = nullptr;
-        }
-
-        operator IDirect3DDevice9*() {
-            return _device;
-        }
-
-        IDirect3DDevice9* operator->() {
-            return _device;
+        IDirect3DDevice9* get() {
+            return _device.Get();
         }
 
         D3DPRESENT_PARAMETERS& param() {
             return _param;
+        }
+
+        IDirect3DDevice9* operator->() {
+            return get();
         }
 
         void reset() {
@@ -263,8 +250,8 @@ namespace polymer {
             style().WindowRounding = 10;
             style().FrameRounding = 10;
 
-            ImGui_ImplWin32_Init(window.handle());
-            ImGui_ImplDX9_Init(device);
+            ImGui_ImplWin32_Init(window.get());
+            ImGui_ImplDX9_Init(device.get());
         }
 
         Ui(const Ui&) = delete;
