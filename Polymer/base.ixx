@@ -21,7 +21,7 @@ using Microsoft::WRL::ComPtr;
 
 namespace polymer {
 
-    export struct Environment {
+    struct Environment {
         HMODULE current_module{};
         int screen_width{};
         int screen_height{};
@@ -227,7 +227,7 @@ namespace polymer {
         }
     };
 
-    export class Ui {
+    class Ui {
     public:
         Ui(Window& window, Device& device) {
             IMGUI_CHECKVERSION();
