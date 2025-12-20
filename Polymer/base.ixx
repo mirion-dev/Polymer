@@ -221,7 +221,6 @@ namespace polymer {
                 &_param,
                 &_device
             ) < 0) {
-                _interface->Release();
                 throw RuntimeError{ "Failed to create the device." };
             }
         }
