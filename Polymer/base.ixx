@@ -49,12 +49,12 @@ namespace polymer {
             scale_factor = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY));
 
             wchar_t* buffer;
-            bool ok{ SHGetKnownFolderPath(FOLDERID_Fonts, 0, nullptr, &buffer) == 0 };
-            CoTaskMemFree(buffer);
-            if (!ok) {
+            if (SHGetKnownFolderPath(FOLDERID_Fonts, 0, nullptr, &buffer) != 0) {
+                CoTaskMemFree(buffer);
                 throw RuntimeError{ "Failed to get the font folder." };
             }
             font_dir = buffer;
+            CoTaskMemFree(buffer);
         }
 
         Environment(const Environment&) = delete;
