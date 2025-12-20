@@ -7,6 +7,8 @@ module;
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx9.h>
 
+#include <ShlObj_core.h>
+
 #include <wrl/client.h> // including <wil/com.h> causes ICE
 #include <wil/resource.h>
 
@@ -24,6 +26,7 @@ namespace polymer {
         int screen_width{};
         int screen_height{};
         float scale_factor{};
+        std::filesystem::path font_dir;
 
         Environment() {
             ImGui_ImplWin32_EnableDpiAwareness();
@@ -44,6 +47,14 @@ namespace polymer {
             }
 
             scale_factor = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY));
+
+            wchar_t* buffer;
+            bool ok{ SHGetKnownFolderPath(FOLDERID_Fonts, 0, nullptr, &buffer) == 0 };
+            CoTaskMemFree(buffer);
+            if (!ok) {
+                throw RuntimeError{ "Failed to get the font folder." };
+            }
+            font_dir = buffer;
         }
 
         Environment(const Environment&) = delete;
