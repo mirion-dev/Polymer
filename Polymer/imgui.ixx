@@ -17,7 +17,7 @@ import polymer.error;
 
 namespace polymer {
 
-    struct Environment {
+    export struct Environment {
         HMODULE current_module{};
         int screen_width{};
         int screen_height{};
@@ -43,15 +43,22 @@ namespace polymer {
 
             scale_factor = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY));
         }
+
+        Environment(const Environment&) = delete;
+        Environment& operator=(const Environment&) = delete;
     };
 
-    static Environment env;
+    static Environment env_instance;
+
+    export Environment& env() {
+        return env_instance;
+    }
 
     export class WindowClass {
         static LRESULT _handler(HWND, UINT, WPARAM, LPARAM);
 
         static void _deleter(ATOM atom) {
-            if (UnregisterClassW(MAKEINTATOM(atom), env.current_module) == 0) {
+            if (UnregisterClassW(MAKEINTATOM(atom), env().current_module) == 0) {
                 fatal_error_with_code("Failed to unregister the window class.");
             }
         }
@@ -69,7 +76,7 @@ namespace polymer {
                 _handler,
                 0,
                 0,
-                env.current_module,
+                env().current_module,
                 nullptr,
                 nullptr,
                 nullptr,
@@ -102,20 +109,20 @@ namespace polymer {
             _title{ title },
             _handler{ new Handler{ handler } } {
 
-            width = std::clamp(static_cast<int>(width * env.scale_factor), 100, env.screen_width);
-            height = std::clamp(static_cast<int>(height * env.scale_factor), 100, env.screen_height);
+            width = std::clamp(static_cast<int>(width * env().scale_factor), 100, env().screen_width);
+            height = std::clamp(static_cast<int>(height * env().scale_factor), 100, env().screen_height);
             _handle.reset(CreateWindowExW(
                 0,
                 window_class.atom(),
                 _title.data(),
                 WS_OVERLAPPEDWINDOW,
-                (env.screen_width - width) / 2,
-                (env.screen_height - height) / 2,
+                (env().screen_width - width) / 2,
+                (env().screen_height - height) / 2,
                 width,
                 height,
                 nullptr,
                 nullptr,
-                env.current_module,
+                env().current_module,
                 _handler.get()
             ));
             if (_handle == nullptr) {
@@ -224,15 +231,8 @@ namespace polymer {
     };
 
     export class Ui {
-        static inline Ui* _instance{};
-
     public:
         Ui(Window& window, Device& device) {
-            if (_instance != nullptr) {
-                throw LogicError{ "The ui already exists." };
-            }
-            _instance = this;
-
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
 
@@ -259,7 +259,7 @@ namespace polymer {
                 throw RuntimeError{ "Failed to load the font." };
             }
 
-            style().ScaleAllSizes(env.scale_factor);
+            style().ScaleAllSizes(env().scale_factor);
             style().WindowRounding = 10;
             style().FrameRounding = 10;
 
@@ -274,7 +274,6 @@ namespace polymer {
             ImGui_ImplDX9_Shutdown();
             ImGui_ImplWin32_Shutdown();
             ImGui::DestroyContext();
-            _instance = nullptr;
         }
 
         ImGuiIO& io() {
@@ -285,5 +284,18 @@ namespace polymer {
             return ImGui::GetStyle();
         }
     };
+
+    static std::optional<Ui> ui_instance;
+
+    export Ui& ui() {
+        if (!ui_instance) {
+            throw LogicError{ "The ui does not exist." };
+        }
+        return *ui_instance;
+    }
+
+    export Ui& ui(Window& window, Device& device) {
+        return ui_instance ? *ui_instance : ui_instance.emplace(window, device);
+    }
 
 }
