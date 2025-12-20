@@ -7,6 +7,7 @@ module;
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx9.h>
 #include <ShlObj_core.h>
+#include <wil/resource.h>
 
 export module polymer.imgui;
 
@@ -16,18 +17,18 @@ import polymer.error;
 
 namespace polymer {
 
-    struct Platform {
+    struct Environment {
         HMODULE current_module{};
         int screen_width{};
         int screen_height{};
         float scale_factor{};
 
-        Platform() {
+        Environment() {
             ImGui_ImplWin32_EnableDpiAwareness();
 
             current_module = GetModuleHandleW(nullptr);
             if (current_module == nullptr) {
-                fatal_error("Failed to get the current module.");
+                fatal_error_with_code("Failed to get the current module.");
             }
 
             screen_width = GetSystemMetrics(SM_CXSCREEN);
@@ -44,122 +45,116 @@ namespace polymer {
         }
     };
 
-    static Platform platform;
+    static Environment env;
 
-    export class Window {
-        static constexpr auto CLASS_NAME{ L"Polymer" };
+    export class WindowClass {
+        static LRESULT _handler(HWND, UINT, WPARAM, LPARAM);
 
-        static inline Window* _instance{};
-
-        HMODULE _module{};
-        HWND _window{};
-        std::function<std::optional<LRESULT>(HWND, UINT, WPARAM, LPARAM)> _handler;
-        float _scale{};
-
-        static LRESULT _message_handler(HWND window, UINT message, WPARAM param1, LPARAM param2) {
-            if (_instance == nullptr) {
-                fatal_error("The window does not exist.");
+        static void _deleter(ATOM atom) {
+            if (UnregisterClassW(MAKEINTATOM(atom), env.current_module) == 0) {
+                fatal_error_with_code("Failed to unregister the window class.");
             }
-
-            if (ImGui_ImplWin32_WndProcHandler(window, message, param1, param2)) {
-                return 1;
-            }
-
-            if (message == WM_DESTROY) {
-                PostQuitMessage(0);
-                _instance->_window = nullptr;
-                return 0;
-            }
-
-            std::optional result{ _instance->_handler(window, message, param1, param2) };
-            return result ? *result : DefWindowProcW(window, message, param1, param2);
         }
 
-    public:
-        Window(const std::wstring& title, int width, int height, const decltype(_handler)& handler) {
-            if (_instance != nullptr) {
-                throw LogicError{ "The window already exists." };
-            }
-            _instance = this;
+        std::wstring _name;
+        wil::unique_any<ATOM, decltype(_deleter), _deleter> _atom;
 
-            _module = GetModuleHandleW(nullptr);
-            if (_module == nullptr) {
-                throw SystemError{ "Failed to get the module." };
-            }
+    public:
+        WindowClass(std::wstring_view name) :
+            _name{ name } {
 
             WNDCLASSEXW window_class{
                 sizeof(window_class),
-                CS_CLASSDC,
-                _message_handler,
+                0,
+                _handler,
                 0,
                 0,
-                _module,
+                env.current_module,
                 nullptr,
                 nullptr,
                 nullptr,
                 nullptr,
-                CLASS_NAME,
+                _name.data(),
                 nullptr
             };
-            if (RegisterClassExW(&window_class) == 0) {
+            _atom.reset(RegisterClassExW(&window_class));
+            if (_atom == nullptr) {
                 throw SystemError{ "Failed to register the window class." };
             }
+        }
 
-            ImGui_ImplWin32_EnableDpiAwareness();
-            _scale = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromPoint({}, MONITOR_DEFAULTTOPRIMARY));
+        const wchar_t* atom() {
+            return MAKEINTATOM(_atom.get());
+        }
+    };
 
-            int screen_width{ GetSystemMetrics(SM_CXSCREEN) };
-            int screen_height{ GetSystemMetrics(SM_CYSCREEN) };
-            width = std::clamp(100, static_cast<int>(width * _scale), screen_width);
-            height = std::clamp(100, static_cast<int>(height * _scale), screen_height);
-            _handler = handler;
-            _window = CreateWindowExW(
+    export class Window {
+        friend WindowClass;
+
+        using Handler = std::function<LRESULT(HWND, UINT, WPARAM, LPARAM)>;
+
+        std::wstring _title;
+        std::unique_ptr<Handler> _handler;
+        wil::unique_hwnd _handle;
+
+    public:
+        Window(WindowClass& window_class, std::wstring_view title, int width, int height, const Handler& handler) :
+            _title{ title },
+            _handler{ new Handler{ handler } } {
+
+            width = std::clamp(static_cast<int>(width * env.scale_factor), 100, env.screen_width);
+            height = std::clamp(static_cast<int>(height * env.scale_factor), 100, env.screen_height);
+            _handle.reset(CreateWindowExW(
                 0,
-                CLASS_NAME,
-                title.data(),
+                window_class.atom(),
+                _title.data(),
                 WS_OVERLAPPEDWINDOW,
-                (screen_width - width) / 2,
-                (screen_height - height) / 2,
+                (env.screen_width - width) / 2,
+                (env.screen_height - height) / 2,
                 width,
                 height,
                 nullptr,
                 nullptr,
-                _module,
-                nullptr
-            );
-            if (_window == nullptr) {
-                if (UnregisterClassW(CLASS_NAME, _module) == 0) {
-                    fatal_error("Failed to create the window and failed to unregister the window class.");
-                }
+                env.current_module,
+                _handler.get()
+            ));
+            if (_handle == nullptr) {
                 throw SystemError{ "Failed to create the window." };
             }
         }
 
-        Window(const Window&) = delete;
-        Window& operator=(const Window&) = delete;
-
-        ~Window() {
-            if (_window != nullptr && DestroyWindow(_window) == 0) {
-                fatal_error("Failed to destroy the window.");
-            }
-            if (UnregisterClassW(CLASS_NAME, _module) == 0) {
-                fatal_error("Failed to unregister the window class.");
-            }
-            _instance = nullptr;
-        }
-
-        operator HWND() {
-            return _window;
-        }
-
-        float scale() const {
-            return _scale;
+        HWND handle() {
+            return _handle.get();
         }
 
         void show() {
-            ShowWindow(_window, SW_SHOWDEFAULT);
+            ShowWindow(_handle.get(), SW_SHOWDEFAULT);
         }
     };
+
+    LRESULT WindowClass::_handler(HWND window, UINT message, WPARAM param1, LPARAM param2) {
+        if (ImGui_ImplWin32_WndProcHandler(window, message, param1, param2)) {
+            return 1;
+        }
+
+        Window::Handler* handler;
+        if (message == WM_NCCREATE) {
+            handler = static_cast<Window::Handler*>(reinterpret_cast<LPCREATESTRUCT>(param2)->lpCreateParams);
+            SetLastError(0);
+            SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(handler));
+            if (GetLastError() != 0) {
+                fatal_error_with_code("Failed to set the user data.");
+            }
+        }
+        else {
+            handler = reinterpret_cast<Window::Handler*>(GetWindowLongPtrW(window, GWLP_USERDATA));
+        }
+
+        if (handler == nullptr) {
+            return DefWindowProcW(window, message, param1, param2);
+        }
+        return (*handler)(window, message, param1, param2);
+    }
 
     export class Device {
         static inline Device* _instance{};
@@ -188,7 +183,7 @@ namespace polymer {
             if (_interface->CreateDevice(
                 D3DADAPTER_DEFAULT,
                 D3DDEVTYPE_HAL,
-                window,
+                window.handle(),
                 D3DCREATE_HARDWARE_VERTEXPROCESSING,
                 &_param,
                 &_device
@@ -264,11 +259,11 @@ namespace polymer {
                 throw RuntimeError{ "Failed to load the font." };
             }
 
-            style().ScaleAllSizes(window.scale());
+            style().ScaleAllSizes(env.scale_factor);
             style().WindowRounding = 10;
             style().FrameRounding = 10;
 
-            ImGui_ImplWin32_Init(window);
+            ImGui_ImplWin32_Init(window.handle());
             ImGui_ImplDX9_Init(device);
         }
 
