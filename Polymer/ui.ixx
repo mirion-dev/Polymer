@@ -233,6 +233,59 @@ namespace polymer {
         ImGuiStyle& style() {
             return ImGui::GetStyle();
         }
+
+        bool process_message() {
+            bool running{ true };
+            MSG message;
+            while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
+                TranslateMessage(&message);
+                DispatchMessageW(&message);
+                if (message.message == WM_QUIT) {
+                    running = false;
+                }
+            }
+            return running;
+        }
+
+        bool render(const auto& func) {
+            ImGui_ImplDX9_NewFrame();
+            ImGui_ImplWin32_NewFrame();
+            ImGui::NewFrame();
+
+            func();
+
+            ImGui::Render();
+
+            if (_device->BeginScene() < 0) {
+                throw RuntimeError{ "Failed to begin a scene." };
+            }
+
+            ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+
+            if (_device->EndScene() < 0) {
+                throw RuntimeError{ "Failed to end a scene." };
+            }
+
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+
+            if (_device->Present(nullptr, nullptr, nullptr, nullptr) >= 0) {
+                return true;
+            }
+
+            HRESULT status{ _device->TestCooperativeLevel() };
+            if (status >= 0) {
+                return true;
+            }
+
+            if (status == D3DERR_DEVICENOTRESET) {
+                _device.reset();
+                return true;
+            }
+
+            std::this_thread::sleep_for(1s);
+            return false;
+        }
     };
 
     static std::optional<Ui> ui_instance;
