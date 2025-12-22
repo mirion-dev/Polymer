@@ -68,12 +68,13 @@ namespace polymer {
                 return _ui->_device.get();
             }
 
-            void reset() {
+            bool reset() {
                 ImGui_ImplDX9_InvalidateDeviceObjects();
                 if (_ui->_device->Reset(&_ui->_param) < 0) {
-                    throw RuntimeError{ "Failed to reset the device." };
+                    return false;
                 }
                 ImGui_ImplDX9_CreateDeviceObjects();
+                return true;
             }
         };
 
@@ -171,17 +172,14 @@ namespace polymer {
             ImGui::NewFrame();
 
             func();
-
             ImGui::Render();
 
             if (_device->BeginScene() < 0) {
-                throw RuntimeError{ "Failed to begin a scene." };
+                return false;
             }
-
             ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
-
             if (_device->EndScene() < 0) {
-                throw RuntimeError{ "Failed to end a scene." };
+                return false;
             }
 
             ImGui::UpdatePlatformWindows();

@@ -16,8 +16,6 @@ using namespace std::literals;
 namespace polymer {
 
     class App {
-        bool _running{ true };
-
     public:
         App() {
             ImGuiIO& io{ ui().io() };
@@ -42,27 +40,32 @@ namespace polymer {
         App& operator=(const App&) = delete;
 
         void run() {
-            while (_running && process_messages()) {
-                if (!ui().render([&] {
+            bool running{ true };
+            bool ready{ true };
+            while (running && process_messages()) {
+                if (!ready) {
+                    HRESULT status{ ui().device()->TestCooperativeLevel() };
+                    if (status < 0 && status != D3DERR_DEVICENOTRESET
+                        || status == D3DERR_DEVICENOTRESET && !ui().device().reset()) {
+                        std::this_thread::sleep_for(100ms);
+                        continue;
+                    }
+                }
+
+                ready = ui().render([&] {
+                    ImGui::ShowDemoWindow();
+
                     static constexpr float WIDTH{ 800 }, HEIGHT{ 600 };
                     ImGui::SetNextWindowSize({ WIDTH, HEIGHT }, ImGuiCond_FirstUseEver);
-                    ImGui::SetNextWindowPos({ (env().screen_width - WIDTH) / 2, (env().screen_height - HEIGHT) / 2 },
-                        ImGuiCond_FirstUseEver);
-                    if (ImGui::Begin("Polymer", &_running)) {
+                    ImGui::SetNextWindowPos(
+                        { (env().screen_width - WIDTH) / 2, (env().screen_height - HEIGHT) / 2 },
+                        ImGuiCond_FirstUseEver
+                    );
+                    if (ImGui::Begin("Polymer", &running)) {
                         ImGui::Text("Hello, world!");
                     }
                     ImGui::End();
-                })) {
-                    HRESULT status{ ui().device()->TestCooperativeLevel() };
-                    if (status < 0) {
-                        if (status == D3DERR_DEVICENOTRESET) {
-                            ui().device().reset();
-                        }
-                        else {
-                            std::this_thread::sleep_for(1s);
-                        }
-                    }
-                }
+                });
             }
         }
     };
