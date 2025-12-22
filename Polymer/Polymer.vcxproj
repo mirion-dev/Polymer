@@ -155,7 +155,7 @@
     <ClCompile Include="env.ixx" />
     <ClCompile Include="error.ixx" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="base.ixx" />
+    <ClCompile Include="ui.ixx" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\third_party\imgui\backends\imgui_impl_dx9.h" />
@@ -166,7 +166,7 @@
     <ClInclude Include="..\third_party\imgui\imstb_rectpack.h" />
     <ClInclude Include="..\third_party\imgui\imstb_textedit.h" />
     <ClInclude Include="..\third_party\imgui\imstb_truetype.h" />
-    <ClInclude Include="base.h" />
+    <ClInclude Include="ui.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\third_party\imgui\misc\debuggers\imgui.natstepfilter" />
