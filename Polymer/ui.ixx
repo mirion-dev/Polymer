@@ -14,72 +14,32 @@ import std;
 import polymer.error;
 import polymer.env;
 
-using namespace Microsoft;
+using Microsoft::WRL::ComPtr;
 
 namespace polymer {
 
-    class Device {
+    static void window_class_deleter(ATOM atom) {
+        if (UnregisterClassW(MAKEINTATOM(atom), env().current_module) == 0) {
+            fatal_error_with_code("Failed to unregister the window class.");
+        }
+    }
+
+    using WindowClass = wil::unique_any<ATOM, decltype(window_class_deleter), window_class_deleter>;
+
+    class Ui {
+        static constexpr auto WINDOW_CLASS_NAME{ L"polymer_ui" };
+
         D3DPRESENT_PARAMETERS _param{
             .SwapEffect             = D3DSWAPEFFECT_DISCARD,
             .Windowed               = true,
             .EnableAutoDepthStencil = true,
             .AutoDepthStencilFormat = D3DFMT_D16
         };
-        WRL::ComPtr<IDirect3D9> _interface;
-        WRL::ComPtr<IDirect3DDevice9> _device;
 
-    public:
-        Device() = default;
-
-        Device(HWND handle) {
-            _interface = Direct3DCreate9(D3D_SDK_VERSION);
-            if (_interface == nullptr) {
-                throw RuntimeError{ "Failed to create the interface." };
-            }
-
-            if (_interface->CreateDevice(
-                D3DADAPTER_DEFAULT,
-                D3DDEVTYPE_HAL,
-                handle,
-                D3DCREATE_HARDWARE_VERTEXPROCESSING,
-                &_param,
-                &_device
-            ) < 0) {
-                throw RuntimeError{ "Failed to create the device." };
-            }
-        }
-
-        IDirect3DDevice9* get() {
-            return _device.Get();
-        }
-
-        D3DPRESENT_PARAMETERS& param() {
-            return _param;
-        }
-
-        IDirect3DDevice9* operator->() {
-            return get();
-        }
-
-        void reset() {
-            ImGui_ImplDX9_InvalidateDeviceObjects();
-            if (_device->Reset(&_param) < 0) {
-                throw RuntimeError{ "Failed to reset the device." };
-            }
-            ImGui_ImplDX9_CreateDeviceObjects();
-        }
-    };
-
-    class Ui {
-        static void _window_class_deleter(ATOM atom) {
-            if (UnregisterClassW(MAKEINTATOM(atom), env().current_module) == 0) {
-                fatal_error_with_code("Failed to unregister the window class.");
-            }
-        }
-
-        wil::unique_any<ATOM, decltype(_window_class_deleter), _window_class_deleter> _window_class;
+        WindowClass _window_class;
         wil::unique_hwnd _window;
-        Device _device;
+        ComPtr<IDirect3D9> _interface;
+        ComPtr<IDirect3DDevice9> _device;
 
     public:
         Ui() {
@@ -94,7 +54,7 @@ namespace polymer {
                 nullptr,
                 nullptr,
                 nullptr,
-                L"polymer_ui",
+                WINDOW_CLASS_NAME,
                 nullptr
             };
             _window_class.reset(RegisterClassExW(&window_class_data));
@@ -120,12 +80,26 @@ namespace polymer {
                 throw SystemError{ "Failed to create the window." };
             }
 
-            _device = _window.get();
+            _interface = Direct3DCreate9(D3D_SDK_VERSION);
+            if (_interface == nullptr) {
+                throw RuntimeError{ "Failed to create the interface." };
+            }
+
+            if (_interface->CreateDevice(
+                D3DADAPTER_DEFAULT,
+                D3DDEVTYPE_HAL,
+                _window.get(),
+                D3DCREATE_HARDWARE_VERTEXPROCESSING,
+                &_param,
+                &_device
+            ) < 0) {
+                throw RuntimeError{ "Failed to create the device." };
+            }
 
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
             ImGui_ImplWin32_Init(_window.get());
-            ImGui_ImplDX9_Init(_device.get());
+            ImGui_ImplDX9_Init(_device.Get());
         }
 
         Ui(const Ui&) = delete;
@@ -137,8 +111,12 @@ namespace polymer {
             ImGui::DestroyContext();
         }
 
-        Device& device() {
-            return _device;
+        IDirect3DDevice9* device() {
+            return _device.Get();
+        }
+
+        D3DPRESENT_PARAMETERS& param() {
+            return _param;
         }
 
         ImGuiIO& io() {
@@ -147,19 +125,6 @@ namespace polymer {
 
         ImGuiStyle& style() {
             return ImGui::GetStyle();
-        }
-
-        bool process_messages() {
-            bool running{ true };
-            MSG message;
-            while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
-                TranslateMessage(&message);
-                DispatchMessageW(&message);
-                if (message.message == WM_QUIT) {
-                    running = false;
-                }
-            }
-            return running;
         }
 
         bool render(const auto& func) {
@@ -186,12 +151,33 @@ namespace polymer {
 
             return _device->Present(nullptr, nullptr, nullptr, nullptr) >= 0;
         }
+
+        void reset_device() {
+            ImGui_ImplDX9_InvalidateDeviceObjects();
+            if (_device->Reset(&_param) < 0) {
+                throw RuntimeError{ "Failed to reset the device." };
+            }
+            ImGui_ImplDX9_CreateDeviceObjects();
+        }
     };
 
     static std::optional<Ui> ui_instance;
 
     export Ui& ui() {
         return ui_instance ? *ui_instance : ui_instance.emplace();
+    }
+
+    export bool process_messages() {
+        bool running{ true };
+        MSG message;
+        while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+            if (message.message == WM_QUIT) {
+                running = false;
+            }
+        }
+        return running;
     }
 
 }
