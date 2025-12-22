@@ -1,8 +1,6 @@
 module;
 
-#include <Windows.h>
 #include <imgui_impl_win32.h>
-
 #include <ShlObj_core.h>
 
 export module polymer.env;

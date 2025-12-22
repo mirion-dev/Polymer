@@ -3,12 +3,10 @@ module;
 #include "ui.h"
 
 #include <d3d9.h>
-#include <imgui.h>
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx9.h>
-
-#include <wrl/client.h> // including <wil/com.h> causes ICE
 #include <wil/resource.h>
+#include <wrl/client.h> // including <wil/com.h> causes ICE
 
 export module polymer.ui;
 
@@ -16,15 +14,16 @@ import std;
 import polymer.error;
 import polymer.env;
 
+using namespace std::literals;
 using namespace Microsoft;
 
 namespace polymer {
 
+    static LRESULT global_message_handler(HWND, UINT, WPARAM, LPARAM);
+
     using MessageHandler = std::function<LRESULT(HWND, UINT, WPARAM, LPARAM)>;
 
     class WindowClass {
-        static LRESULT _message_handler(HWND, UINT, WPARAM, LPARAM);
-
         static void _deleter(ATOM atom) {
             if (UnregisterClassW(MAKEINTATOM(atom), env().current_module) == 0) {
                 fatal_error_with_code("Failed to unregister the window class.");
@@ -41,7 +40,7 @@ namespace polymer {
             WNDCLASSEXW window_class{
                 sizeof(window_class),
                 0,
-                _message_handler,
+                global_message_handler,
                 0,
                 0,
                 env().current_module,
@@ -60,6 +59,10 @@ namespace polymer {
 
         const wchar_t* get() {
             return MAKEINTATOM(_atom.get());
+        }
+
+        std::wstring_view name() const {
+            return _name;
         }
     };
 
@@ -104,12 +107,20 @@ namespace polymer {
             return _handle.get();
         }
 
+        std::wstring_view title() const {
+            return _title;
+        }
+
+        const MessageHandler& message_handler() const {
+            return *_message_handler;
+        }
+
         void show() {
             ShowWindow(_handle.get(), SW_SHOWDEFAULT);
         }
     };
 
-    LRESULT WindowClass::_message_handler(HWND window, UINT message, WPARAM param1, LPARAM param2) {
+    LRESULT global_message_handler(HWND window, UINT message, WPARAM param1, LPARAM param2) {
         if (ImGui_ImplWin32_WndProcHandler(window, message, param1, param2)) {
             return 1;
         }
@@ -184,7 +195,7 @@ namespace polymer {
     };
 
     class Ui {
-        WindowClass _window_class{ L"Polymer" };
+        WindowClass _window_class{ L"polymer_ui" };
         Window _window;
         Device _device{ _window };
 
@@ -221,19 +232,6 @@ namespace polymer {
 
         ImGuiStyle& style() {
             return ImGui::GetStyle();
-        }
-
-        static bool process_message() {
-            MSG message;
-            bool quit{};
-            while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
-                TranslateMessage(&message);
-                DispatchMessageW(&message);
-                if (message.message == WM_QUIT) {
-                    quit = true;
-                }
-            }
-            return quit;
         }
     };
 
