@@ -94,7 +94,7 @@ namespace polymer {
                 nullptr
             };
             _window_class.reset(RegisterClassExW(&window_class_data));
-            if (_window_class == nullptr) {
+            if (!_window_class) {
                 throw SystemError{ "Failed to register the window class." };
             }
 
@@ -112,12 +112,12 @@ namespace polymer {
                 env().current_module,
                 nullptr
             ));
-            if (_window == nullptr) {
+            if (!_window) {
                 throw SystemError{ "Failed to create the window." };
             }
 
-            _interface = Direct3DCreate9(D3D_SDK_VERSION);
-            if (_interface == nullptr) {
+            _interface.attach(Direct3DCreate9(D3D_SDK_VERSION));
+            if (!_interface) {
                 throw RuntimeError{ "Failed to create the interface." };
             }
 
@@ -134,17 +134,17 @@ namespace polymer {
 
             IMGUI_CHECKVERSION();
             _context.reset(ImGui::CreateContext());
-            if (_context == nullptr) {
+            if (!_context) {
                 throw RuntimeError{ "Failed to create the context." };
             }
 
             _imgui_win32.reset(ImGui_ImplWin32_Init(_window.get()));
-            if (_imgui_win32 == nullptr) {
+            if (!_imgui_win32) {
                 throw RuntimeError{ "Failed to initialize ImGui (Win32)." };
             }
 
             _imgui_dx.reset(ImGui_ImplDX9_Init(_device.get()));
-            if (_imgui_dx == nullptr) {
+            if (!_imgui_dx) {
                 throw RuntimeError{ "Failed to initialize ImGui (DirectX)." };
             }
 
