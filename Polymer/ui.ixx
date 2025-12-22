@@ -6,7 +6,7 @@ module;
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx9.h>
 #include <wil/resource.h>
-#include <wrl/client.h> // including <wil/com.h> causes ICE
+#include <wil/com.h>
 
 export module polymer.ui;
 
@@ -38,8 +38,8 @@ namespace polymer {
 
         WindowClass _window_class;
         wil::unique_hwnd _window;
-        ComPtr<IDirect3D9> _interface;
-        ComPtr<IDirect3DDevice9> _device;
+        wil::com_ptr_t<IDirect3D9> _interface;
+        wil::com_ptr_t<IDirect3DDevice9> _device;
 
     public:
         Ui() {
@@ -99,7 +99,7 @@ namespace polymer {
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
             ImGui_ImplWin32_Init(_window.get());
-            ImGui_ImplDX9_Init(_device.Get());
+            ImGui_ImplDX9_Init(_device.get());
         }
 
         Ui(const Ui&) = delete;
@@ -112,7 +112,7 @@ namespace polymer {
         }
 
         IDirect3DDevice9* device() {
-            return _device.Get();
+            return _device.get();
         }
 
         D3DPRESENT_PARAMETERS& param() {
