@@ -27,6 +27,7 @@
     <ClCompile Include="app.ixx" />
     <ClCompile Include="core.ixx" />
     <ClCompile Include="error.ixx" />
+    <ClCompile Include="env.ixx" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="third_party">

@@ -152,6 +152,7 @@
     <ClCompile Include="..\third_party\imgui\imgui_widgets.cpp" />
     <ClCompile Include="app.ixx" />
     <ClCompile Include="core.ixx" />
+    <ClCompile Include="env.ixx" />
     <ClCompile Include="error.ixx" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="base.ixx" />

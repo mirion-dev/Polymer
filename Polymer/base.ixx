@@ -7,67 +7,22 @@ module;
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx9.h>
 
-#include <ShlObj_core.h>
-
 #include <wrl/client.h> // including <wil/com.h> causes ICE
 #include <wil/resource.h>
 
-export module polymer.base;
+export module polymer.ui;
 
 import std;
 import polymer.error;
+import polymer.env;
 
 using namespace Microsoft;
 
 namespace polymer {
 
-    struct Environment {
-        HMODULE current_module{};
-        int screen_width{};
-        int screen_height{};
-        float scale_factor{};
-        std::filesystem::path font_dir;
+    using MessageHandler = std::function<LRESULT(HWND, UINT, WPARAM, LPARAM)>;
 
-        Environment() {
-            ImGui_ImplWin32_EnableDpiAwareness();
-
-            current_module = GetModuleHandleW(nullptr);
-            if (current_module == nullptr) {
-                fatal_error_with_code("Failed to get the current module.");
-            }
-
-            screen_width = GetSystemMetrics(SM_CXSCREEN);
-            if (screen_width == 0) {
-                fatal_error("Failed to get the screen width.");
-            }
-
-            screen_height = GetSystemMetrics(SM_CYSCREEN);
-            if (screen_height == 0) {
-                fatal_error("Failed to get the screen height.");
-            }
-
-            scale_factor = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY));
-
-            wchar_t* buffer;
-            if (SHGetKnownFolderPath(FOLDERID_Fonts, 0, nullptr, &buffer) != 0) {
-                CoTaskMemFree(buffer);
-                throw RuntimeError{ "Failed to get the font folder." };
-            }
-            font_dir = buffer;
-            CoTaskMemFree(buffer);
-        }
-
-        Environment(const Environment&) = delete;
-        Environment& operator=(const Environment&) = delete;
-    };
-
-    static Environment env_instance;
-
-    export Environment& env() {
-        return env_instance;
-    }
-
-    export class WindowClass {
+    class WindowClass {
         static LRESULT _message_handler(HWND, UINT, WPARAM, LPARAM);
 
         static void _deleter(ATOM atom) {
@@ -108,11 +63,7 @@ namespace polymer {
         }
     };
 
-    export class Window {
-        friend WindowClass;
-
-        using MessageHandler = std::function<LRESULT(HWND, UINT, WPARAM, LPARAM)>;
-
+    class Window {
         std::wstring _title;
         std::unique_ptr<MessageHandler> _message_handler;
         wil::unique_hwnd _handle;
@@ -156,19 +107,6 @@ namespace polymer {
         void show() {
             ShowWindow(_handle.get(), SW_SHOWDEFAULT);
         }
-
-        static bool process_message() {
-            MSG message;
-            bool quit{};
-            while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
-                TranslateMessage(&message);
-                DispatchMessageW(&message);
-                if (message.message == WM_QUIT) {
-                    quit = true;
-                }
-            }
-            return quit;
-        }
     };
 
     LRESULT WindowClass::_message_handler(HWND window, UINT message, WPARAM param1, LPARAM param2) {
@@ -176,10 +114,9 @@ namespace polymer {
             return 1;
         }
 
-        Window::MessageHandler* message_handler;
+        MessageHandler* message_handler;
         if (message == WM_NCCREATE) {
-            message_handler = static_cast<Window::MessageHandler*>(reinterpret_cast<LPCREATESTRUCT>(param2)->
-                lpCreateParams);
+            message_handler = static_cast<MessageHandler*>(reinterpret_cast<LPCREATESTRUCT>(param2)->lpCreateParams);
             SetLastError(0);
             SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(message_handler));
             if (GetLastError() != 0) {
@@ -187,7 +124,7 @@ namespace polymer {
             }
         }
         else {
-            message_handler = reinterpret_cast<Window::MessageHandler*>(GetWindowLongPtrW(window, GWLP_USERDATA));
+            message_handler = reinterpret_cast<MessageHandler*>(GetWindowLongPtrW(window, GWLP_USERDATA));
         }
 
         if (message_handler == nullptr) {
@@ -196,7 +133,7 @@ namespace polymer {
         return (*message_handler)(window, message, param1, param2);
     }
 
-    export class Device {
+    class Device {
         D3DPRESENT_PARAMETERS _param{
             .SwapEffect             = D3DSWAPEFFECT_DISCARD,
             .Windowed               = true,
@@ -247,12 +184,18 @@ namespace polymer {
     };
 
     class Ui {
+        WindowClass _window_class{ L"Polymer" };
+        Window _window;
+        Device _device{ _window };
+
     public:
-        Ui(Window& window, Device& device) {
+        Ui(std::wstring_view title, int width, int height, const MessageHandler& message_handler) :
+            _window{ _window_class, title, width, height, message_handler } {
+
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
-            ImGui_ImplWin32_Init(window.get());
-            ImGui_ImplDX9_Init(device.get());
+            ImGui_ImplWin32_Init(_window.get());
+            ImGui_ImplDX9_Init(_device.get());
         }
 
         Ui(const Ui&) = delete;
@@ -264,12 +207,33 @@ namespace polymer {
             ImGui::DestroyContext();
         }
 
+        Window& window() {
+            return _window;
+        }
+
+        Device& device() {
+            return _device;
+        }
+
         ImGuiIO& io() {
             return ImGui::GetIO();
         }
 
         ImGuiStyle& style() {
             return ImGui::GetStyle();
+        }
+
+        static bool process_message() {
+            MSG message;
+            bool quit{};
+            while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
+                TranslateMessage(&message);
+                DispatchMessageW(&message);
+                if (message.message == WM_QUIT) {
+                    quit = true;
+                }
+            }
+            return quit;
         }
     };
 
@@ -282,8 +246,8 @@ namespace polymer {
         return *ui_instance;
     }
 
-    export Ui& ui(Window& window, Device& device) {
-        return ui_instance ? *ui_instance : ui_instance.emplace(window, device);
+    export Ui& ui(std::wstring_view title, int width, int height, const MessageHandler& message_handler) {
+        return ui_instance ? *ui_instance : ui_instance.emplace(title, width, height, message_handler);
     }
 
 }
