@@ -148,7 +148,9 @@ namespace polymer {
                 throw RuntimeError{ "Failed to initialize ImGui (DirectX)." };
             }
 
-            io().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+            ImGuiIO& io{ this->io() };
+            io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+            io.ConfigViewportsNoAutoMerge = true;
         }
 
         Ui(const Ui&) = delete;
