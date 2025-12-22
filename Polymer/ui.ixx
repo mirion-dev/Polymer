@@ -14,7 +14,6 @@ import std;
 import polymer.error;
 import polymer.env;
 
-using namespace std::literals;
 using namespace Microsoft;
 
 namespace polymer {
@@ -234,7 +233,7 @@ namespace polymer {
             return ImGui::GetStyle();
         }
 
-        bool process_message() {
+        bool process_messages() {
             bool running{ true };
             MSG message;
             while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
@@ -247,19 +246,20 @@ namespace polymer {
             return running;
         }
 
-        bool render(const auto& func) {
+        void render(const auto& func) {
             ImGui_ImplDX9_NewFrame();
             ImGui_ImplWin32_NewFrame();
             ImGui::NewFrame();
-
             func();
-
             ImGui::Render();
+        }
 
+        bool present(const auto& func) {
             if (_device->BeginScene() < 0) {
                 throw RuntimeError{ "Failed to begin a scene." };
             }
 
+            func();
             ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 
             if (_device->EndScene() < 0) {
@@ -269,22 +269,7 @@ namespace polymer {
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
 
-            if (_device->Present(nullptr, nullptr, nullptr, nullptr) >= 0) {
-                return true;
-            }
-
-            HRESULT status{ _device->TestCooperativeLevel() };
-            if (status >= 0) {
-                return true;
-            }
-
-            if (status == D3DERR_DEVICENOTRESET) {
-                _device.reset();
-                return true;
-            }
-
-            std::this_thread::sleep_for(1s);
-            return false;
+            return _device->Present(nullptr, nullptr, nullptr, nullptr) >= 0;
         }
     };
 
