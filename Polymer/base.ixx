@@ -128,8 +128,8 @@ namespace polymer {
             _title{ title },
             _message_handler{ new MessageHandler{ message_handler } } {
 
-            width = std::clamp(static_cast<int>(width * env().scale_factor), 100, env().screen_width);
-            height = std::clamp(static_cast<int>(height * env().scale_factor), 100, env().screen_height);
+            width = std::clamp(width, 100, env().screen_width);
+            height = std::clamp(height, 100, env().screen_height);
             _handle.reset(CreateWindowExW(
                 0,
                 window_class.get(),
