@@ -1,6 +1,6 @@
 module;
 
-#include <Windows.h>
+#include <wil/resource.h>
 
 export module polymer.error;
 
@@ -11,6 +11,7 @@ namespace polymer {
 
     export std::string format_error_code(DWORD code) {
         wchar_t* buffer{};
+        auto _{ wil::scope_exit([&] { LocalFree(buffer); }) }; // no failure handling
         DWORD size{
             FormatMessageW(
                 FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -24,7 +25,6 @@ namespace polymer {
         };
 
         std::string result{ to_string({ buffer, size }) };
-        LocalFree(buffer); // no failure handling
         if (result.ends_with("\r\n")) {
             result.resize(result.size() - 2);
         }

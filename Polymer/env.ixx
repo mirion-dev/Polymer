@@ -2,6 +2,7 @@ module;
 
 #include <imgui_impl_win32.h>
 #include <ShlObj_core.h>
+#include <wil/resource.h>
 
 export module polymer.env;
 
@@ -38,12 +39,11 @@ namespace polymer {
             scale_factor = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY));
 
             wchar_t* buffer;
+            auto _{ wil::scope_exit([&] { CoTaskMemFree(buffer); }) };
             if (SHGetKnownFolderPath(FOLDERID_Fonts, 0, nullptr, &buffer) != 0) {
-                CoTaskMemFree(buffer);
-                throw RuntimeError{ "Failed to get the font folder." };
+                fatal_error("Failed to get the font folder.");
             }
             font_dir = buffer;
-            CoTaskMemFree(buffer);
         }
 
         Environment(const Environment&) = delete;
