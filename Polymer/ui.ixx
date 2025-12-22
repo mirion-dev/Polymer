@@ -18,16 +18,20 @@ using Microsoft::WRL::ComPtr;
 
 namespace polymer {
 
-    static void window_class_deleter(ATOM atom) {
-        if (UnregisterClassW(MAKEINTATOM(atom), env().current_module) == 0) {
-            fatal_error_with_code("Failed to unregister the window class.");
-        }
-    }
-
-    using WindowClass = wil::unique_any<ATOM, decltype(window_class_deleter), window_class_deleter>;
-
     class Ui {
         static constexpr auto WINDOW_CLASS_NAME{ L"polymer_ui" };
+
+        static void _window_class_deleter(ATOM window_class) {
+            UnregisterClassW(MAKEINTATOM(window_class), env().current_module); // no failure handling
+        }
+
+        static void _imgui_win32_deleter(bool) {
+            ImGui_ImplWin32_Shutdown();
+        }
+
+        static void _imgui_dx_deleter(bool) {
+            ImGui_ImplDX9_Shutdown();
+        }
 
         D3DPRESENT_PARAMETERS _param{
             .SwapEffect             = D3DSWAPEFFECT_DISCARD,
@@ -36,12 +40,43 @@ namespace polymer {
             .AutoDepthStencilFormat = D3DFMT_D16
         };
 
-        WindowClass _window_class;
+        wil::unique_any<ATOM, decltype(&_window_class_deleter), _window_class_deleter> _window_class;
         wil::unique_hwnd _window;
         wil::com_ptr_t<IDirect3D9> _interface;
         wil::com_ptr_t<IDirect3DDevice9> _device;
+        wil::unique_any<ImGuiContext*, decltype(&ImGui::DestroyContext), ImGui::DestroyContext> _context;
+        wil::unique_any<bool, decltype(&_imgui_win32_deleter), _imgui_win32_deleter> _imgui_win32;
+        wil::unique_any<bool, decltype(&_imgui_dx_deleter), _imgui_dx_deleter> _imgui_dx;
 
     public:
+        class IDevice {
+            friend Ui;
+
+            Ui* _ui{};
+
+            IDevice(Ui* ui) :
+                _ui{ ui } {}
+
+        public:
+            IDevice() = default;
+
+            operator IDirect3DDevice9*() {
+                return _ui->_device.get();
+            }
+
+            IDirect3DDevice9* operator->() {
+                return _ui->_device.get();
+            }
+
+            void reset() {
+                ImGui_ImplDX9_InvalidateDeviceObjects();
+                if (_ui->_device->Reset(&_ui->_param) < 0) {
+                    throw RuntimeError{ "Failed to reset the device." };
+                }
+                ImGui_ImplDX9_CreateDeviceObjects();
+            }
+        };
+
         Ui() {
             WNDCLASSEXW window_class_data{
                 sizeof(window_class_data),
@@ -97,26 +132,29 @@ namespace polymer {
             }
 
             IMGUI_CHECKVERSION();
-            ImGui::CreateContext();
-            ImGui_ImplWin32_Init(_window.get());
-            ImGui_ImplDX9_Init(_device.get());
+            _context.reset(ImGui::CreateContext());
+            if (_context == nullptr) {
+                throw RuntimeError{ "Failed to create the context." };
+            }
+
+            _imgui_win32.reset(ImGui_ImplWin32_Init(_window.get()));
+            if (_imgui_win32 == nullptr) {
+                throw RuntimeError{ "Failed to initialize ImGui (Win32)." };
+            }
+
+            _imgui_dx.reset(ImGui_ImplDX9_Init(_device.get()));
+            if (_imgui_dx == nullptr) {
+                throw RuntimeError{ "Failed to initialize ImGui (DirectX)." };
+            }
+
+            io().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
         }
 
         Ui(const Ui&) = delete;
         Ui& operator=(const Ui&) = delete;
 
-        ~Ui() {
-            ImGui_ImplDX9_Shutdown();
-            ImGui_ImplWin32_Shutdown();
-            ImGui::DestroyContext();
-        }
-
-        IDirect3DDevice9* device() {
-            return _device.get();
-        }
-
-        D3DPRESENT_PARAMETERS& param() {
-            return _param;
+        IDevice device() {
+            return this;
         }
 
         ImGuiIO& io() {
@@ -150,14 +188,6 @@ namespace polymer {
             ImGui::RenderPlatformWindowsDefault();
 
             return _device->Present(nullptr, nullptr, nullptr, nullptr) >= 0;
-        }
-
-        void reset_device() {
-            ImGui_ImplDX9_InvalidateDeviceObjects();
-            if (_device->Reset(&_param) < 0) {
-                throw RuntimeError{ "Failed to reset the device." };
-            }
-            ImGui_ImplDX9_CreateDeviceObjects();
         }
     };
 

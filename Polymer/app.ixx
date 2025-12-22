@@ -21,9 +21,7 @@ namespace polymer {
     public:
         App() {
             ImGuiIO& io{ ui().io() };
-            io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard
-                | ImGuiConfigFlags_DockingEnable
-                | ImGuiConfigFlags_ViewportsEnable;
+            io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
             io.ConfigDpiScaleFonts = true;
             io.ConfigDpiScaleViewports = true;
             io.IniFilename = nullptr;
@@ -37,10 +35,7 @@ namespace polymer {
                 throw RuntimeError{ "Failed to load the font." };
             }
 
-            ImGuiStyle& style{ ui().style() };
-            style.WindowRounding = 10;
-            style.FrameRounding = 10;
-            style.ScaleAllSizes(env().scale_factor);
+            ui().style().ScaleAllSizes(env().scale_factor);
         }
 
         App(const App&) = delete;
@@ -61,7 +56,7 @@ namespace polymer {
                     HRESULT status{ ui().device()->TestCooperativeLevel() };
                     if (status < 0) {
                         if (status == D3DERR_DEVICENOTRESET) {
-                            ui().reset_device();
+                            ui().device().reset();
                         }
                         else {
                             std::this_thread::sleep_for(1s);
