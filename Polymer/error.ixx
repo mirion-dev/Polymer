@@ -35,12 +35,11 @@ namespace polymer {
     }
 
     export std::string format_error(std::string_view message, const std::source_location& loc) {
-        std::string filename{ loc.file_name() };
         return std::format(
             "{}\n    at {} ({}:{})",
             message,
             loc.function_name(),
-            filename.substr(filename.find_last_of('\\') + 1),
+            to_string(std::filesystem::path{ loc.file_name() }.filename().wstring()),
             loc.line()
         );
     }
