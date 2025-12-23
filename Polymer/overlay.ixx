@@ -35,15 +35,14 @@ namespace polymer {
         return !dest.name.has_parent_path() && dest.name.has_filename() && dest.name != "." && dest.name != "..";
     }
 
-    class Overlay {
-        std::filesystem::path _patcher_dir{
+    struct Overlay {
+        std::filesystem::path patcher_dir{
             std::filesystem::temp_directory_path() / std::format("polymer_{}", env().current_process_id)
         };
-        std::filesystem::path _patches_dir{ _patcher_dir / "patches" };
-        std::filesystem::path _patcher_path;
-        std::vector<std::filesystem::path> _patches_path;
+        std::filesystem::path patches_dir{ patcher_dir / "patches" };
+        std::filesystem::path patcher_name;
+        std::vector<std::filesystem::path> patches_name;
 
-    public:
         Overlay() {
             auto header{ ImageNtHeader(env().current_module) };
             if (header == nullptr) {
@@ -85,8 +84,8 @@ namespace polymer {
                 }
             }
 
-            if (!std::filesystem::create_directories(_patcher_dir) ||
-                !std::filesystem::create_directories(_patches_dir)) {
+            if (!std::filesystem::create_directories(patcher_dir) ||
+                !std::filesystem::create_directories(patches_dir)) {
                 throw RuntimeError{ "Failed to create temporary directories." };
             }
 
@@ -97,13 +96,13 @@ namespace polymer {
                 throw RuntimeError{ "Failed to read the patcher." };
             }
 
-            _patcher_path = _patcher_dir / patcher.name;
-            if (!std::ofstream{ _patcher_path, std::ios::binary }.write(buffer.data(), patcher.size)) {
+            if (!std::ofstream{ patcher_dir / patcher.name, std::ios::binary }.write(buffer.data(), patcher.size)) {
                 throw RuntimeError{ "Failed to extract the patcher." };
             }
+            patcher_name = std::move(patcher.name);
 
-            _patches_path.resize(patches_num);
-            auto iter{ _patches_path.begin() };
+            patches_name.resize(patches_num);
+            auto iter{ patches_name.begin() };
             for (auto& [offset, size, name] : patches) {
                 buffer.resize(size);
                 file.seekg(offset);
@@ -111,11 +110,10 @@ namespace polymer {
                     throw RuntimeError{ "Failed to read patches." };
                 }
 
-                std::filesystem::path path{ _patches_dir / name };
-                if (!std::ofstream{ path, std::ios::binary }.write(buffer.data(), size)) {
+                if (!std::ofstream{ patches_dir / name, std::ios::binary }.write(buffer.data(), size)) {
                     throw RuntimeError{ "Failed to extract patches." };
                 }
-                *iter++ = std::move(path);
+                *iter++ = std::move(name);
             }
         }
 
@@ -124,16 +122,8 @@ namespace polymer {
 
         ~Overlay() {
             std::error_code error;
-            std::filesystem::remove_all(_patcher_dir, error);
-            std::filesystem::remove_all(_patches_dir, error);
-        }
-
-        const auto& patcher_path() const {
-            return _patcher_path;
-        }
-
-        const auto& patches_path() const {
-            return _patches_path;
+            std::filesystem::remove_all(patcher_dir, error);
+            std::filesystem::remove_all(patches_dir, error);
         }
     };
 
