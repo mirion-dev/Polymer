@@ -12,7 +12,10 @@ import polymer.error;
 
 namespace polymer {
 
-    struct Environment {
+    class Environment {
+        friend const Environment& env();
+
+    public:
         HMODULE current_module{};
         std::filesystem::path current_path;
         DWORD current_process_id{};
@@ -23,12 +26,13 @@ namespace polymer {
 
         std::filesystem::path font_dir;
 
+    private:
         Environment() {
             ImGui_ImplWin32_EnableDpiAwareness();
 
             current_module = GetModuleHandleW(nullptr);
             if (current_module == nullptr) {
-                fatal_error_with_code("Failed to get the current module.");
+                throw SystemError{ "Failed to get the current module." };
             }
 
             std::wstring path;
@@ -40,7 +44,7 @@ namespace polymer {
                     [&](wchar_t* data, std::size_t) -> DWORD {
                         DWORD size{ GetModuleFileNameW(current_module, data, capacity) };
                         if (size == 0) {
-                            fatal_error_with_code("Failed to get the current path.");
+                            throw SystemError{ "Failed to get the current path." };
                         }
 
                         if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
@@ -60,12 +64,12 @@ namespace polymer {
 
             screen_width = GetSystemMetrics(SM_CXSCREEN);
             if (screen_width == 0) {
-                fatal_error("Failed to get the screen width.");
+                throw RuntimeError{ "Failed to get the screen width." }; // no extra error info
             }
 
             screen_height = GetSystemMetrics(SM_CYSCREEN);
             if (screen_height == 0) {
-                fatal_error("Failed to get the screen height.");
+                throw RuntimeError{ "Failed to get the screen height." }; // no extra error info
             }
 
             scale_factor = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY));
@@ -73,7 +77,7 @@ namespace polymer {
             wchar_t* dir;
             auto _{ wil::scope_exit([&] { CoTaskMemFree(dir); }) };
             if (SHGetKnownFolderPath(FOLDERID_Fonts, 0, nullptr, &dir) != 0) {
-                fatal_error("Failed to get the font folder.");
+                throw RuntimeError{ "Failed to get the font folder." };
             }
             font_dir = dir;
         }
@@ -82,10 +86,9 @@ namespace polymer {
         Environment& operator=(const Environment&) = delete;
     };
 
-    static Environment env_instance;
-
-    export Environment& env() {
-        return env_instance;
+    export const Environment& env() {
+        static Environment instance;
+        return instance;
     }
 
 }

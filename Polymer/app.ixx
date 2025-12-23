@@ -18,7 +18,8 @@ using namespace std::literals;
 namespace polymer {
 
     class App {
-    public:
+        friend App& app();
+
         App() {
             ImGuiIO& io{ ui().io() };
             io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
@@ -48,9 +49,11 @@ namespace polymer {
         App(const App&) = delete;
         App& operator=(const App&) = delete;
 
-        void run() {
+    public:
+        static void run() {
             bool running{ true };
             bool ready{ true };
+
             std::vector<std::string> targets(overlay().patches_name.size());
             ImVec4 info_color;
             std::string info;
@@ -96,10 +99,9 @@ namespace polymer {
         }
     };
 
-    static std::optional<App> app_instance;
-
     export App& app() {
-        return app_instance ? *app_instance : app_instance.emplace();
+        static App instance;
+        return instance;
     }
 
 }

@@ -35,7 +35,10 @@ namespace polymer {
         return !dest.name.has_parent_path() && dest.name.has_filename() && dest.name != "." && dest.name != "..";
     }
 
-    struct Overlay {
+    class Overlay {
+        friend const Overlay& overlay();
+
+    public:
         std::filesystem::path patcher_dir{
             std::filesystem::temp_directory_path() / std::format("polymer_{}", env().current_process_id)
         };
@@ -43,6 +46,7 @@ namespace polymer {
         std::filesystem::path patcher_name;
         std::vector<std::filesystem::path> patches_name;
 
+    private:
         Overlay() {
             auto header{ ImageNtHeader(env().current_module) };
             if (header == nullptr) {
@@ -120,6 +124,7 @@ namespace polymer {
         Overlay(const Overlay&) = delete;
         Overlay& operator=(const Overlay&) = delete;
 
+    public:
         ~Overlay() {
             std::error_code error;
             std::filesystem::remove_all(patcher_dir, error);
@@ -127,10 +132,9 @@ namespace polymer {
         }
     };
 
-    static std::optional<Overlay> overlay_instance;
-
-    export Overlay& overlay() {
-        return overlay_instance ? *overlay_instance : overlay_instance.emplace();
+    export const Overlay& overlay() {
+        static Overlay instance;
+        return instance;
     }
 
 }

@@ -17,6 +17,8 @@ using Microsoft::WRL::ComPtr;
 namespace polymer {
 
     class Ui {
+        friend Ui& ui();
+
         static constexpr auto WINDOW_CLASS_NAME{ L"polymer_ui" };
 
         static void _window_class_deleter(ATOM window_class) {
@@ -76,6 +78,7 @@ namespace polymer {
             }
         };
 
+    private:
         Ui() {
             WNDCLASSEXW window_class_data{
                 sizeof(window_class_data),
@@ -154,6 +157,7 @@ namespace polymer {
         Ui(const Ui&) = delete;
         Ui& operator=(const Ui&) = delete;
 
+    public:
         IDevice device() {
             return this;
         }
@@ -189,10 +193,9 @@ namespace polymer {
         }
     };
 
-    static std::optional<Ui> ui_instance;
-
     export Ui& ui() {
-        return ui_instance ? *ui_instance : ui_instance.emplace();
+        static Ui instance;
+        return instance;
     }
 
     export bool process_messages() {
