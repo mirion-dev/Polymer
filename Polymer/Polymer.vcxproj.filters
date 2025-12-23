@@ -62,7 +62,6 @@
     <ClInclude Include="..\third_party\imgui\backends\imgui_impl_win32.h">
       <Filter>third_party\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="ui.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\third_party\imgui\misc\debuggers\imgui.natstepfilter">

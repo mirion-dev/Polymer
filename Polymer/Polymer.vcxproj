@@ -166,7 +166,6 @@
     <ClInclude Include="..\third_party\imgui\imstb_rectpack.h" />
     <ClInclude Include="..\third_party\imgui\imstb_textedit.h" />
     <ClInclude Include="..\third_party\imgui\imstb_truetype.h" />
-    <ClInclude Include="ui.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\third_party\imgui\misc\debuggers\imgui.natstepfilter" />
