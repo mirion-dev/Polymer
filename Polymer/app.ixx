@@ -17,10 +17,10 @@ using namespace std::literals;
 
 namespace polymer {
 
-    class App {
-        friend App& app();
+    class Application {
+        friend Application& app();
 
-        App() {
+        Application() {
             ImGuiIO& io{ ui().io() };
             io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
             io.ConfigDpiScaleFonts = true;
@@ -46,8 +46,8 @@ namespace polymer {
             style.WindowMenuButtonPosition = ImGuiDir_None;
         }
 
-        App(const App&) = delete;
-        App& operator=(const App&) = delete;
+        Application(const Application&) = delete;
+        Application& operator=(const Application&) = delete;
 
     public:
         static void run() {
@@ -99,8 +99,8 @@ namespace polymer {
         }
     };
 
-    export App& app() {
-        static App instance;
+    export Application& app() {
+        static Application instance;
         return instance;
     }
 
