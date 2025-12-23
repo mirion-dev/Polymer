@@ -7,6 +7,7 @@ module;
 export module polymer.env;
 
 import std;
+import polymer.core;
 import polymer.error;
 
 namespace polymer {
@@ -16,7 +17,7 @@ namespace polymer {
         int screen_width{};
         int screen_height{};
         float scale_factor{};
-        std::filesystem::path font_dir;
+        std::string font_dir;
 
         Environment() {
             ImGui_ImplWin32_EnableDpiAwareness();
@@ -43,7 +44,7 @@ namespace polymer {
             if (SHGetKnownFolderPath(FOLDERID_Fonts, 0, nullptr, &buffer) != 0) {
                 fatal_error("Failed to get the font folder.");
             }
-            font_dir = buffer;
+            font_dir = to_string(buffer);
         }
 
         Environment(const Environment&) = delete;

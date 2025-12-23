@@ -25,7 +25,7 @@ namespace polymer {
             io.IniFilename = nullptr;
 
             if (io.Fonts->AddFontFromFileTTF(
-                reinterpret_cast<char*>((env().font_dir / "msyh.ttc").u8string().data()),
+                (env().font_dir + "\\msyh.ttc").data(),
                 18,
                 nullptr,
                 io.Fonts->GetGlyphRangesChineseSimplifiedCommon()
