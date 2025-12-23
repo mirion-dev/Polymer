@@ -2,6 +2,7 @@ module;
 
 #include <d3d9.h>
 #include <imgui.h>
+#include <imgui_stdlib.h>
 
 export module polymer.app;
 
@@ -9,6 +10,7 @@ import std;
 import polymer.core;
 import polymer.error;
 import polymer.env;
+import polymer.overlay;
 import polymer.ui;
 
 using namespace std::literals;
@@ -49,28 +51,38 @@ namespace polymer {
         void run() {
             bool running{ true };
             bool ready{ true };
-
-            bool show_demo{};
+            std::vector<std::string> targets(overlay().patches_name.size());
+            ImVec4 info_color;
+            std::string info;
             while (running && process_messages()) {
                 if (ready) {
-                ready = ui().render([&] {
-                        static constexpr float WIDTH{ 600 }, HEIGHT{ 600 };
+                    ready = ui().render([&] {
+                        static constexpr float WIDTH{ 640 }, HEIGHT{ 480 };
                         ImGui::SetNextWindowSize({ WIDTH, HEIGHT }, ImGuiCond_FirstUseEver);
-                    ImGui::SetNextWindowPos(
+                        ImGui::SetNextWindowPos(
                             { (env().screen_width - WIDTH) / 2, (env().screen_height - HEIGHT) / 2 },
-                        ImGuiCond_FirstUseEver
-                    );
+                            ImGuiCond_FirstUseEver
+                        );
                         ImGui::Begin("Polymer", &running);
-                        if (ImGui::Button("Show Demo")) {
-                            show_demo = true;
+                        for (auto&& [target, name] : std::views::zip(targets, overlay().patches_name)) {
+                            ImGui::InputText(to_string(name.wstring()).data(), &target);
                         }
-                    ImGui::End();
-
-                    if (show_demo) {
-                        ImGui::ShowDemoWindow(&show_demo);
-                    }
-                });
-            }
+                        if (!info.empty()) {
+                            ImGui::TextColored(info_color, info.data());
+                        }
+                        if (ImGui::Button("Apply")) {
+                            if (targets[0].empty()) {
+                                info_color = { 1, 0, 0, 1 };
+                                info = "The target cannot be empty.";
+                            }
+                            else {
+                                info_color = { 1, 1, 1, 1 };
+                                info = "OK, you did it.";
+                            }
+                        }
+                        ImGui::End();
+                    });
+                }
                 else {
                     HRESULT status{ ui().device()->TestCooperativeLevel() };
                     if (status >= 0 || status == D3DERR_DEVICENOTRESET && ui().device().reset()) {
