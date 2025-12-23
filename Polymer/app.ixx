@@ -52,33 +52,34 @@ namespace polymer {
 
             bool show_demo{};
             while (running && process_messages()) {
-                if (!ready) {
-                    HRESULT status{ ui().device()->TestCooperativeLevel() };
-                    if (status < 0 && status != D3DERR_DEVICENOTRESET
-                        || status == D3DERR_DEVICENOTRESET && !ui().device().reset()) {
-                        std::this_thread::sleep_for(100ms);
-                        continue;
-                    }
-                }
-
+                if (ready) {
                 ready = ui().render([&] {
-                    ImGui::SetNextWindowSize({ 600, 600 }, ImGuiCond_FirstUseEver);
+                        static constexpr float WIDTH{ 600 }, HEIGHT{ 600 };
+                        ImGui::SetNextWindowSize({ WIDTH, HEIGHT }, ImGuiCond_FirstUseEver);
                     ImGui::SetNextWindowPos(
-                        { (env().screen_width - 600.f) / 2, (env().screen_height - 600.f) / 2 },
+                            { (env().screen_width - WIDTH) / 2, (env().screen_height - HEIGHT) / 2 },
                         ImGuiCond_FirstUseEver
                     );
-                    if (ImGui::Begin("Polymer", &running)) {
-                        ImGui::Text("Hello, world!");
+                        ImGui::Begin("Polymer", &running);
                         if (ImGui::Button("Show Demo")) {
                             show_demo = true;
                         }
-                    }
                     ImGui::End();
 
                     if (show_demo) {
                         ImGui::ShowDemoWindow(&show_demo);
                     }
                 });
+            }
+                else {
+                    HRESULT status{ ui().device()->TestCooperativeLevel() };
+                    if (status >= 0 || status == D3DERR_DEVICENOTRESET && ui().device().reset()) {
+                        ready = true;
+                    }
+                    else {
+                        std::this_thread::sleep_for(100ms);
+                    }
+                }
             }
         }
     };
