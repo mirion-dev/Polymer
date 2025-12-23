@@ -1,3 +1,3 @@
 # Polymer
 
-An self-extracting patch tool.
+A self-extracting patch tool.
