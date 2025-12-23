@@ -28,6 +28,7 @@
     <ClCompile Include="core.ixx" />
     <ClCompile Include="error.ixx" />
     <ClCompile Include="env.ixx" />
+    <ClCompile Include="overlay.ixx" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="third_party">
