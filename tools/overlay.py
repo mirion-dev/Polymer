@@ -21,7 +21,8 @@ for name in os.listdir(patches_dir):
     if os.path.isfile(path):
         patches_path.append(path)
         patches_size.append(os.path.getsize(path))
-log(f'Found {len(patches_path)} patches.')
+patches_num = len(patches_path)
+log(f'Found {patches_num} patches.')
 
 with pefile.PE(exe_path) as pe:
     offset = pe.get_overlay_data_start_offset()
@@ -51,7 +52,7 @@ with open(exe_path, 'r+b') as exe:
     log('Succeeded to write the patcher\'s metadata.')
 
     patches_loc = []
-    exe.write(struct.pack('I', len(patches_path)))
+    exe.write(struct.pack('I', patches_num))
     for (size, path) in zip(patches_size, patches_path):
         patches_loc.append(exe.tell())
         exe.write(struct.pack('2I', 0, size))

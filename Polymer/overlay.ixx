@@ -11,7 +11,7 @@ import polymer.env;
 
 namespace polymer {
 
-    struct Item {
+    struct FileData {
         std::uint32_t offset, size;
         std::filesystem::path name;
     };
@@ -20,7 +20,7 @@ namespace polymer {
         return static_cast<bool>(stream.read(reinterpret_cast<char*>(&dest), sizeof(dest)));
     }
 
-    static bool read_binary(auto& stream, Item& dest) {
+    static bool read_binary(auto& stream, FileData& dest) {
         std::uint16_t name_size;
         if (!read_binary(stream, dest.offset) || !read_binary(stream, dest.size) || !read_binary(stream, name_size)) {
             return false;
@@ -71,7 +71,7 @@ namespace polymer {
                 throw RuntimeError{ "Wrong signature." };
             }
 
-            Item patcher;
+            FileData patcher;
             if (!read_binary(file, patcher)) {
                 throw RuntimeError{ "Failed to read the patcher's metadata." };
             }
@@ -81,7 +81,7 @@ namespace polymer {
                 throw RuntimeError{ "Failed to read patches' metadata." };
             }
 
-            std::vector<Item> patches(patches_num);
+            std::vector<FileData> patches(patches_num);
             for (auto& patch : patches) {
                 if (!read_binary(file, patch)) {
                     throw RuntimeError{ "Failed to read patches' metadata." };
@@ -99,25 +99,22 @@ namespace polymer {
             if (!file.read(buffer.data(), patcher.size)) {
                 throw RuntimeError{ "Failed to read the patcher." };
             }
-
             if (!std::ofstream{ patcher_dir / patcher.name, std::ios::binary }.write(buffer.data(), patcher.size)) {
                 throw RuntimeError{ "Failed to extract the patcher." };
             }
             patcher_name = std::move(patcher.name);
 
             patches_name.resize(patches_num);
-            auto iter{ patches_name.begin() };
-            for (auto& [offset, size, name] : patches) {
-                buffer.resize(size);
+            for (auto&& [name, patch] : std::views::zip(patches_name, patches)) {
+                buffer.resize(patch.size);
                 file.seekg(offset);
-                if (!file.read(buffer.data(), size)) {
+                if (!file.read(buffer.data(), patch.size)) {
                     throw RuntimeError{ "Failed to read patches." };
                 }
-
-                if (!std::ofstream{ patches_dir / name, std::ios::binary }.write(buffer.data(), size)) {
+                if (!std::ofstream{ patches_dir / patch.name, std::ios::binary }.write(buffer.data(), patch.size)) {
                     throw RuntimeError{ "Failed to extract patches." };
                 }
-                *iter++ = std::move(name);
+                name = std::move(patch.name);
             }
         }
 

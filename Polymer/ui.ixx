@@ -60,15 +60,15 @@ namespace polymer {
         public:
             IDevice() = default;
 
-            operator IDirect3DDevice9*() {
+            operator IDirect3DDevice9*() const {
                 return _ui->_device.get();
             }
 
-            IDirect3DDevice9* operator->() {
+            IDirect3DDevice9* operator->() const {
                 return _ui->_device.get();
             }
 
-            bool reset() {
+            bool reset() const {
                 ImGui_ImplDX9_InvalidateDeviceObjects();
                 if (_ui->_device->Reset(&_ui->_param) < 0) {
                     return false;
@@ -149,7 +149,7 @@ namespace polymer {
                 throw RuntimeError{ "Failed to initialize ImGui (DirectX)." };
             }
 
-            ImGuiIO& io{ this->io() };
+            ImGuiIO& io{ Ui::io() };
             io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
             io.ConfigViewportsNoAutoMerge = true;
         }
@@ -162,15 +162,15 @@ namespace polymer {
             return this;
         }
 
-        ImGuiIO& io() {
+        static ImGuiIO& io() {
             return ImGui::GetIO();
         }
 
-        ImGuiStyle& style() {
+        static ImGuiStyle& style() {
             return ImGui::GetStyle();
         }
 
-        bool render(const auto& func) {
+        bool render(const auto& func) const {
             ImGui_ImplDX9_NewFrame();
             ImGui_ImplWin32_NewFrame();
             ImGui::NewFrame();
