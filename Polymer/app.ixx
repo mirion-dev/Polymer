@@ -60,19 +60,22 @@ namespace polymer {
             while (running && process_messages()) {
                 if (ready) {
                     ready = ui().render([&] {
-                        static constexpr float WIDTH{ 640 }, HEIGHT{ 480 };
-                        ImGui::SetNextWindowSize({ WIDTH, HEIGHT }, ImGuiCond_FirstUseEver);
+                        ImGui::SetNextWindowSize({ 640, 480 }, ImGuiCond_FirstUseEver);
                         ImGui::SetNextWindowPos(
-                            { (env().screen_width - WIDTH) / 2, (env().screen_height - HEIGHT) / 2 },
-                            ImGuiCond_FirstUseEver
+                            { env().screen_width / 2.f, env().screen_height / 2.f },
+                            ImGuiCond_FirstUseEver,
+                            { .5, .5 }
                         );
                         ImGui::Begin("Polymer", &running);
+
                         for (auto&& [target, name] : std::views::zip(targets, overlay().patches_name)) {
                             ImGui::InputText(to_string(name.wstring()).data(), &target);
                         }
+
                         if (!info.empty()) {
                             ImGui::TextColored(info_color, info.data());
                         }
+
                         if (ImGui::Button("Apply")) {
                             if (targets[0].empty()) {
                                 info_color = { 1, 0, 0, 1 };
@@ -83,6 +86,7 @@ namespace polymer {
                                 info = "OK, you did it.";
                             }
                         }
+
                         ImGui::End();
                     });
                 }
